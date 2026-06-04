@@ -1,0 +1,42 @@
+diff --git a/node_modules/expo-modules-autolinking/build/platforms/apple/apple.js b/node_modules/expo-modules-autolinking/build/platforms/apple/apple.js
+index 47487c0..473ef5a 100644
+--- a/node_modules/expo-modules-autolinking/build/platforms/apple/apple.js
++++ b/node_modules/expo-modules-autolinking/build/platforms/apple/apple.js
+@@ -137,13 +137,17 @@ ${generateReactDelegateHandlers(reactDelegateHandlerModules, debugOnlyReactDeleg
+ `;
+ }
+ function generateCommonImportList(swiftModules) {
+-    return swiftModules.map((moduleName) => `import ${moduleName}`).join('\n');
++    return swiftModules
++        .map((moduleName) => moduleName === 'Expo' ? 'internal import Expo' : `import ${moduleName}`)
++        .join('\n');
+ }
+ function generateDebugOnlyImportList(swiftModules) {
+     if (!swiftModules.length) {
+         return '';
+     }
+-    return (wrapInDebugConfigurationCheck(0, swiftModules.map((moduleName) => `import ${moduleName}`).join('\n')) + '\n');
++    return (wrapInDebugConfigurationCheck(0, swiftModules
++        .map((moduleName) => moduleName === 'Expo' ? 'internal import Expo' : `import ${moduleName}`)
++        .join('\n')) + '\n');
+ }
+ function generateModuleClasses(classNames, debugOnlyClassName) {
+     const commonClassNames = formatArrayOfClassNames(classNames);
+diff --git a/node_modules/expo-modules-autolinking/tsconfig.json b/node_modules/expo-modules-autolinking/tsconfig.json
+index 833dc0d..184a194 100644
+--- a/node_modules/expo-modules-autolinking/tsconfig.json
++++ b/node_modules/expo-modules-autolinking/tsconfig.json
+@@ -3,9 +3,11 @@
+   "include": ["./src"],
+   "exclude": ["**/__mocks__/*", "**/__tests__/*"],
+   "compilerOptions": {
++    "rootDir": "./src",
+     "outDir": "./build",
+-    "module": "commonjs",
+-    "moduleResolution": "node",
++    "module": "Node16",
++    "moduleResolution": "node16",
++    "ignoreDeprecations": "6.0",
+     "types": [],
+     "typeRoots": ["./ts-declarations", "node_modules/@types"],
+     "sourceMap": true,

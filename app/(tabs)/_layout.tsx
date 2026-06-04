@@ -1,59 +1,150 @@
-import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
-
+import { Tabs } from 'expo-router';
+import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
+import { Ionicons } from '@expo/vector-icons';
+import { Image, Platform, StyleSheet, Text as RNText, View as RNView } from 'react-native';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
-}
+import { usePlaybackIndicator } from '@/hooks/useAudioStream';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme];
+  const { isPlaying, artworkUri } = usePlaybackIndicator();
+  const iosVersion = Platform.OS === 'ios' ? Number.parseInt(String(Platform.Version), 10) || 0 : 0;
+  const canUseNativeTabs = Platform.OS === 'ios' && iosVersion >= 26;
+
+  const renderLabel = (label: string) => {
+    return ({ focused }: { focused: boolean }) => (
+      <RNView style={styles.labelWrap}>
+        <RNText
+          style={[
+            styles.labelText,
+            { color: focused ? theme.tabIconSelected : theme.tabIconDefault },
+          ]}
+        >
+          {label}
+        </RNText>
+        {isPlaying && label !== 'Live' ? (
+          <Image source={{ uri: artworkUri }} style={styles.labelArtwork} />
+        ) : null}
+      </RNView>
+    );
+  };
+
+  if (canUseNativeTabs) {
+    return (
+      <NativeTabs
+        tintColor={theme.tint}
+        labelStyle={{
+          fontSize: 11,
+          fontWeight: '600',
+          color: theme.tabIconDefault,
+        }}
+        iconColor={{
+          default: theme.tabIconDefault,
+          selected: theme.tabIconSelected,
+        }}
+        backgroundColor={null}
+        blurEffect="systemUltraThinMaterial"
+        shadowColor="transparent"
+        disableTransparentOnScrollEdge
+        minimizeBehavior="onScrollDown"
+      >
+        <NativeTabs.Trigger name="explore">
+          <Icon sf={{ default: 'safari', selected: 'safari.fill' }} />
+          <Label>Explore</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="index">
+          <Icon sf="dot.radiowaves.left.and.right" />
+          <Label>Live</Label>
+          <NativeTabs.Trigger.TabBar blurEffect="systemChromeMaterial" />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="recent">
+          <Icon sf={{ default: 'clock', selected: 'clock.fill' }} />
+          <Label>Recent</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="settings">
+          <Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} />
+          <Label>Settings</Label>
+        </NativeTabs.Trigger>
+      </NativeTabs>
+    );
+  }
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        headerShown: false,
+        tabBarActiveTintColor: theme.tabIconSelected,
+        tabBarInactiveTintColor: theme.tabIconDefault,
+        tabBarStyle: {
+          position: 'relative',
+          backgroundColor: theme.card,
+          borderTopWidth: 0,
+          height: Platform.OS === 'ios' ? 86 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 22 : 8,
+          paddingTop: 8,
+        },
+      }}
+    >
       <Tabs.Screen
-        name="index"
+        name="explore"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
+          title: 'Explore',
+          tabBarLabel: renderLabel('Explore'),
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="compass" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="index"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Live',
+          tabBarLabel: renderLabel('Live'),
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="radio" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="recent"
+        options={{
+          title: 'Recent',
+          tabBarLabel: renderLabel('Recent'),
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="time" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarLabel: renderLabel('Settings'),
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  labelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  labelText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  labelArtwork: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+});

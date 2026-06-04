@@ -1,0 +1,149 @@
+diff --git a/node_modules/react-native-widget-extension/ios/Attributes.swift b/node_modules/react-native-widget-extension/ios/Attributes.swift
+new file mode 100644
+index 0000000..989b886
+--- /dev/null
++++ b/node_modules/react-native-widget-extension/ios/Attributes.swift
+@@ -0,0 +1,13 @@
++import ActivityKit
++
++struct RadioActivityAttributes: ActivityAttributes {
++  public struct ContentState: Codable, Hashable {
++    var title: String
++    var subtitle: String
++    var isLive: Bool
++    var artworkURL: String
++    var waveformLevel: Double
++  }
++
++  var stationName: String
++}
+diff --git a/node_modules/react-native-widget-extension/ios/Module.swift b/node_modules/react-native-widget-extension/ios/Module.swift
+new file mode 100644
+index 0000000..c28edda
+--- /dev/null
++++ b/node_modules/react-native-widget-extension/ios/Module.swift
+@@ -0,0 +1,124 @@
++import ActivityKit
++import ExpoModulesCore
++import UIKit
++
++public class ReactNativeWidgetExtensionModule: Module {
++  private let appGroupIdentifier = "group.com.firstdivisioncaptain.KbpsLive"
++  private let artworkFilename = "live-activity-artwork.jpg"
++  private let artworkSourceDefaultsKey = "kbpslive.artworkSource"
++
++  private func resolveArtworkReference(_ artworkURL: String) async -> String {
++    let trimmed = artworkURL.trimmingCharacters(in: .whitespacesAndNewlines)
++    guard !trimmed.isEmpty else {
++      return artworkURL
++    }
++
++    guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) else {
++      return artworkURL
++    }
++
++    let destinationURL = containerURL.appendingPathComponent(artworkFilename)
++    let defaults = UserDefaults(suiteName: appGroupIdentifier)
++    let previousSource = defaults?.string(forKey: artworkSourceDefaultsKey)
++
++    if previousSource == trimmed, FileManager.default.fileExists(atPath: destinationURL.path) {
++      return destinationURL.path
++    }
++
++    guard let remoteURL = URL(string: trimmed), let scheme = remoteURL.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
++      return artworkURL
++    }
++
++    do {
++      let (data, response) = try await URLSession.shared.data(from: remoteURL)
++      guard let httpResponse = response as? HTTPURLResponse, (200 ..< 300).contains(httpResponse.statusCode) else {
++        return artworkURL
++      }
++
++      let bytesToWrite: Data
++      if let image = UIImage(data: data), let jpeg = image.jpegData(compressionQuality: 0.9) {
++        bytesToWrite = jpeg
++      } else {
++        bytesToWrite = data
++      }
++
++      try bytesToWrite.write(to: destinationURL, options: .atomic)
++      defaults?.set(trimmed, forKey: artworkSourceDefaultsKey)
++      return destinationURL.path
++    } catch {
++      return artworkURL
++    }
++  }
++
++  public func definition() -> ModuleDefinition {
++    Name("ReactNativeWidgetExtension")
++
++    Function("areActivitiesEnabled") { () -> Bool in
++      guard #available(iOS 16.2, *) else {
++        return false
++      }
++      return ActivityAuthorizationInfo().areActivitiesEnabled
++    }
++
++    AsyncFunction("startActivity") { (title: String, subtitle: String, stationName: String, artworkURL: String, isLive: Bool, waveformLevel: Double) -> String in
++      guard #available(iOS 16.2, *) else {
++        return "unsupported-ios"
++      }
++
++      let attributes = RadioActivityAttributes(stationName: stationName)
++      let artworkReference = await self.resolveArtworkReference(artworkURL)
++      let state = RadioActivityAttributes.ContentState(title: title, subtitle: subtitle, isLive: isLive, artworkURL: artworkReference, waveformLevel: waveformLevel)
++      let content = ActivityContent(state: state, staleDate: nil)
++
++      do {
++        if let existingActivity = Activity<RadioActivityAttributes>.activities.first {
++          await existingActivity.update(content)
++          return "updated-existing"
++        }
++
++        _ = try Activity<RadioActivityAttributes>.request(
++          attributes: attributes,
++          content: content,
++          pushType: nil
++        )
++        return "requested"
++      } catch {
++        return "start-error: \(error.localizedDescription)"
++      }
++    }
++
++    AsyncFunction("updateActivity") { (title: String, subtitle: String, isLive: Bool, artworkURL: String, waveformLevel: Double) -> String in
++      guard #available(iOS 16.2, *) else {
++        return "unsupported-ios"
++      }
++
++      let artworkReference = await self.resolveArtworkReference(artworkURL)
++      let state = RadioActivityAttributes.ContentState(title: title, subtitle: subtitle, isLive: isLive, artworkURL: artworkReference, waveformLevel: waveformLevel)
++      let content = ActivityContent(state: state, staleDate: nil)
++
++      do {
++        for activity in Activity<RadioActivityAttributes>.activities {
++          await activity.update(content)
++        }
++        return "updated"
++      } catch {
++        return "update-error: \(error.localizedDescription)"
++      }
++    }
++
++    AsyncFunction("endActivity") { () -> String in
++      guard #available(iOS 16.2, *) else {
++        return "unsupported-ios"
++      }
++
++      do {
++        for activity in Activity<RadioActivityAttributes>.activities {
++          await activity.end(nil, dismissalPolicy: .immediate)
++        }
++        return "ended"
++      } catch {
++        return "end-error: \(error.localizedDescription)"
++      }
++    }
++  }
++}
