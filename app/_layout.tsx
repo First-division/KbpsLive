@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
+import { LaunchFlow } from '@/components/launch-flow';
 import { ThemeModeProvider, useThemeMode } from '@/components/theme-mode';
 
 export const unstable_settings = {
@@ -14,9 +15,12 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <LaunchFlow />
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'formSheet', title: 'Modal' }} />
+        <Stack.Screen name="welcome-modal" options={{ presentation: 'modal', title: 'Welcome to KBPS' }} />
+        <Stack.Screen name="whats-new-modal" options={{ presentation: 'modal', title: "What's New" }} />
       </Stack>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>

@@ -9,7 +9,6 @@ import { AirplayButton, useAvAudioSessionRoutes } from 'react-airplay';
 import { Text, View } from '@/components/Themed';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
-import { Waveform } from '@/components/Waveform';
 import { setPlaybackIndicatorArtwork, useAudioStream, usePlaybackBands, usePlaybackIndicator } from '@/hooks/useAudioStream';
 import { useNowPlaying } from '@/hooks/useNowPlaying';
 import { Station } from '@/constants/Station';
@@ -43,7 +42,6 @@ async function startLiveActivity(
 ): Promise<string> {
   try {
     const result = await liveActivityModule.startActivity(title, subtitle, stationName, artworkURL, isLive, waveformLevel);
-    console.log('[LiveActivity] startActivity', result);
     return String(result ?? 'ok');
   } catch {
     // Fall through for older installed native module signatures.
@@ -51,14 +49,12 @@ async function startLiveActivity(
 
   try {
     const result = await liveActivityModule.startActivity(title, subtitle, stationName, artworkURL);
-    console.log('[LiveActivity] startActivity legacy-4', result);
     return String(result ?? 'ok');
   } catch {
     // Fall through for the oldest installed native module signatures.
   }
 
   const result = await liveActivityModule.startActivity(title, subtitle, stationName);
-  console.log('[LiveActivity] startActivity legacy-3', result);
   return String(result ?? 'ok');
 }
 
@@ -73,7 +69,6 @@ async function updateLiveActivity(
 ): Promise<string> {
   try {
     const result = await liveActivityModule.updateActivity(title, subtitle, isLive, artworkURL, waveformLevel);
-    console.log('[LiveActivity] updateActivity', result);
     return String(result ?? 'ok');
   } catch {
     // Fall through for older installed native module signatures.
@@ -81,7 +76,6 @@ async function updateLiveActivity(
 
   try {
     const result = await liveActivityModule.updateActivity(title, subtitle, isLive);
-    console.log('[LiveActivity] updateActivity legacy-3', result);
     return String(result ?? 'ok');
   } catch {
     // Fall back to start for bridges that only expose the original request method.
@@ -95,8 +89,8 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme];
   const { status, error, togglePlayPause } = useAudioStream();
-  const playbackIndicator = usePlaybackIndicator();
   const bands = usePlaybackBands();
+  const playbackIndicator = usePlaybackIndicator();
   const isPlaying = status === 'playing';
   const isConnecting = status === 'connecting';
   const nowPlaying = useNowPlaying(isPlaying);
@@ -106,7 +100,6 @@ export default function HomeScreen() {
   const liveActivitySyncInFlightRef = useRef(false);
   const liveActivitySyncQueuedRef = useRef(false);
   const lastLiveActivitySyncAtRef = useRef(0);
-  const liveActivitySignalAtRef = useRef(0);
   const lastLiveActivityPayloadRef = useRef<{
     title: string;
     subtitle: string;
@@ -122,43 +115,69 @@ export default function HomeScreen() {
   const bottomControlsPadding = Platform.OS === 'ios'
     ? Math.max(insets.bottom + 72, 88)
     : Math.max(insets.bottom + 16, 24);
-  const shouldShowLiveActivity = status === 'connecting' || isPlaying;
   const [appState, setAppState] = useState<'active' | 'inactive' | 'background'>('active');
-  const activityIsLive = shouldShowLiveActivity || playbackIndicator.isPlaying;
-  const shouldRunLiveActivity = activityIsLive && appState !== 'background';
+  const shouldRunLiveActivity = isPlaying;
   const artworkUrl = nowPlaying.artwork?.trim();
   const hasRealArtwork = Boolean(artworkUrl) && artworkUrl !== Station.defaultArtwork;
   const liveActivityArtworkUrl = hasRealArtwork ? nowPlaying.artwork : Station.defaultArtwork;
   const liveActivitySubtitle = nowPlaying.artist || Station.tagline;
-  const liveWaveformLevel = activityIsLive ? playbackIndicator.audioLevel : 0;
   const [waveTick, setWaveTick] = useState(0);
 
   useEffect(() => {
-    if (!activityIsLive) {
+    if (!shouldRunLiveActivity) {
       return;
     }
 
     const id = setInterval(() => {
       setWaveTick((prev) => prev + 1);
-    }, 450);
+    }, 220);
 
     return () => {
       clearInterval(id);
     };
-  }, [activityIsLive]);
+  }, [shouldRunLiveActivity]);
 
-  const liveWaveformBucket = useMemo(() => {
-    if (!activityIsLive) {
+  const diBandLevel = useMemo(() => {
+    if (!shouldRunLiveActivity || bands.length === 0) {
       return 0;
     }
 
-    const boosted = Math.min(1, Math.pow(Math.max(liveWaveformLevel, 0.005), 0.66) * 1.08);
-    const pulse = (Math.sin(waveTick * 0.92) + 1) / 2;
-    const modulated = Math.min(1, boosted * (0.62 + pulse * 0.78) + pulse * 0.05);
+    let weighted = 0;
+    let totalWeight = 0;
+    for (let index = 0; index < bands.length; index++) {
+      const value = Math.max(0, Math.min(1, bands[index] ?? 0));
+      const weight = index <= 1 ? 0.65 : index <= 4 ? 1.05 : 1.28;
+      weighted += value * weight;
+      totalWeight += weight;
+    }
+
+    return weighted / Math.max(totalWeight, 1);
+  }, [bands, shouldRunLiveActivity]);
+
+  const liveWaveformLevel = useMemo(() => {
+    if (!shouldRunLiveActivity) {
+      return 0;
+    }
+
+    const playback = Math.max(0, Math.min(1, playbackIndicator.audioLevel));
+    const base = Math.max(diBandLevel, playback * 0.55);
+    const mixed = base * 0.78 + playback * 0.32;
+    return Math.min(1, mixed);
+  }, [diBandLevel, playbackIndicator.audioLevel, shouldRunLiveActivity]);
+
+  const liveWaveformBucket = useMemo(() => {
+    if (!shouldRunLiveActivity) {
+      return 0;
+    }
+
+    const boosted = Math.min(1, Math.pow(Math.max(liveWaveformLevel, 0.002), 0.5) * 1.26);
+    const pulse = (Math.sin(waveTick * 1.08) + 1) / 2;
+    const shimmer = (Math.sin(waveTick * 0.58 + 1.1) + 1) / 2;
+    const modulated = Math.min(1, boosted * (0.56 + pulse * 0.82) + shimmer * 0.1);
     const withFloor = Math.max(0.08, modulated);
-    const quantized = Math.round(withFloor * 25) / 25;
+    const quantized = Math.round(withFloor * 40) / 40;
     return Number(quantized.toFixed(2));
-  }, [activityIsLive, liveWaveformLevel, waveTick]);
+  }, [shouldRunLiveActivity, liveWaveformLevel, waveTick]);
 
   const handleTogglePlayPause = useCallback(() => {
     togglePlayPause();
@@ -171,12 +190,6 @@ export default function HomeScreen() {
   useEffect(() => {
     setPlaybackIndicatorArtwork(liveActivityArtworkUrl);
   }, [liveActivityArtworkUrl]);
-
-  useEffect(() => {
-    if (activityIsLive) {
-      liveActivitySignalAtRef.current = Date.now();
-    }
-  }, [activityIsLive]);
 
   useEffect(() => {
     if (Platform.OS !== 'ios') {
@@ -219,21 +232,13 @@ export default function HomeScreen() {
         do {
           liveActivitySyncQueuedRef.current = false;
 
-          const keepAliveInForeground = appState !== 'background'
-            && liveActivityStartedRef.current
-            && Date.now() - liveActivitySignalAtRef.current < 30000;
-          const shouldAnimateIsland = shouldRunLiveActivity || keepAliveInForeground || liveActivityStartedRef.current;
-
-          if (shouldRunLiveActivity || keepAliveInForeground) {
-            const nextWaveformLevel = activityIsLive
-              ? liveWaveformBucket
-              : Math.max(lastLiveActivityPayloadRef.current?.waveformLevel ?? 0.22, 0.22);
+          if (shouldRunLiveActivity) {
             const nextPayload = {
               title: nowPlaying.title,
               subtitle: liveActivitySubtitle,
               artworkURL: liveActivityArtworkUrl,
-              isLive: shouldAnimateIsland,
-              waveformLevel: nextWaveformLevel,
+              isLive: true,
+              waveformLevel: liveWaveformBucket,
             };
 
             if (!liveActivityStartedRef.current) {
@@ -266,8 +271,8 @@ export default function HomeScreen() {
               || previousPayload.artworkURL !== nextPayload.artworkURL
               || previousPayload.isLive !== nextPayload.isLive;
             const now = Date.now();
-            const staleSync = now - lastLiveActivitySyncAtRef.current >= 500;
-            if (!metadataChanged && waveformDelta < 0.02 && !staleSync) {
+            const staleSync = now - lastLiveActivitySyncAtRef.current >= 700;
+            if (!metadataChanged && waveformDelta < 0.025 && !staleSync) {
               continue;
             }
 
@@ -291,6 +296,13 @@ export default function HomeScreen() {
             continue;
           }
 
+          if (liveActivityStartedRef.current) {
+            const result = await Promise.resolve(liveActivityModule.endActivity());
+            liveActivityStartedRef.current = false;
+            lastLiveActivityPayloadRef.current = null;
+            lastLiveActivitySyncAtRef.current = 0;
+          }
+
         } while (liveActivitySyncQueuedRef.current);
       } finally {
         liveActivitySyncInFlightRef.current = false;
@@ -300,13 +312,11 @@ export default function HomeScreen() {
     void sync();
   }, [
     iosVersion,
-    activityIsLive,
     liveActivityArtworkUrl,
     liveActivitySubtitle,
     nowPlaying.title,
     shouldRunLiveActivity,
     liveWaveformBucket,
-    appState,
   ]);
 
   const artworkSource = useMemo(
@@ -354,15 +364,6 @@ export default function HomeScreen() {
       <Text style={[styles.nowPlayingArtist, { color: theme.tabIconDefault }]} numberOfLines={1}>
         {nowPlaying.artist}
       </Text>
-
-      {/* Frequency Waveform */}
-      <View style={styles.waveformWrap}>
-        <Waveform
-          bands={bands}
-          isActive={isPlaying}
-          color={theme.tint}
-        />
-      </View>
 
       {/* Status Indicator */}
       <View style={styles.statusRow}>
@@ -532,10 +533,6 @@ const styles = StyleSheet.create({
     color: '#a8b0bc',
     marginBottom: 12,
     textAlign: 'center',
-  },
-  waveformWrap: {
-    marginBottom: 12,
-    backgroundColor: 'transparent',
   },
   statusRow: {
     flexDirection: 'row',

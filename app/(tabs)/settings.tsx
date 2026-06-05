@@ -1,7 +1,7 @@
-import { StyleSheet, ScrollView, Pressable, Linking, Appearance, AppState, Platform } from 'react-native';
+import { StyleSheet, ScrollView, Pressable, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { requireOptionalNativeModule } from 'expo-modules-core';
-import { useEffect, useMemo, useState } from 'react';
+import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text, View } from '@/components/Themed';
@@ -16,10 +16,6 @@ interface LinkRowProps {
   label: string;
   url: string;
 }
-
-type ThemeNativeModule = {
-  getSystemColorScheme?: () => Promise<unknown> | unknown;
-};
 
 function LinkRow({ icon, iconColor = '#1a73e8', label, url }: LinkRowProps) {
   const colorScheme = useColorScheme();
@@ -39,72 +35,11 @@ function LinkRow({ icon, iconColor = '#1a73e8', label, url }: LinkRowProps) {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme];
   const { preference, setPreference } = useThemeMode();
-  const [nativeScheme, setNativeScheme] = useState<string>('n/a');
-  const [jsScheme, setJsScheme] = useState<'light' | 'dark'>(
-    Appearance.getColorScheme() === 'dark' ? 'dark' : 'light'
-  );
-  const themeNativeModule = useMemo(
-    () => (Platform.OS === 'ios'
-      ? requireOptionalNativeModule<ThemeNativeModule>('ReactNativeWidgetExtension')
-      : null),
-    []
-  );
-
-  useEffect(() => {
-    if (!__DEV__) {
-      return;
-    }
-
-    let mounted = true;
-    const refresh = async () => {
-      const nextJs = Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
-      if (mounted) {
-        setJsScheme(nextJs);
-      }
-
-      if (!themeNativeModule?.getSystemColorScheme) {
-        if (mounted) {
-          setNativeScheme('missing-module');
-        }
-        return;
-      }
-
-      try {
-        const result = await Promise.resolve(themeNativeModule.getSystemColorScheme());
-        const normalized = result === 'dark' || result === 'light' ? result : 'unexpected-value';
-        if (mounted) {
-          setNativeScheme(normalized);
-        }
-      } catch {
-        if (mounted) {
-          setNativeScheme('call-failed');
-        }
-      }
-    };
-
-    void refresh();
-    const appearanceSub = Appearance.addChangeListener(() => {
-      void refresh();
-    });
-    const appStateSub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        void refresh();
-      }
-    });
-    const timer = setInterval(() => {
-      void refresh();
-    }, 1000);
-
-    return () => {
-      mounted = false;
-      appearanceSub.remove();
-      appStateSub.remove();
-      clearInterval(timer);
-    };
-  }, [themeNativeModule]);
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
   const appearanceOptions: Array<{ value: ThemePreference; label: string }> = [
     { value: 'system', label: 'System' },
@@ -163,9 +98,6 @@ export default function SettingsScreen() {
             );
           })}
         </View>
-        {__DEV__ ? (
-          <Text style={[styles.appearanceDebug, { color: theme.tabIconDefault }]}>native:{nativeScheme} js:{jsScheme} resolved:{colorScheme} pref:{preference}</Text>
-        ) : null}
       </View>
 
       {/* Contact */}
@@ -203,9 +135,29 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Learn</Text>
+        <Pressable
+          style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          onPress={() => router.push('/welcome-modal')}
+        >
+          <Ionicons name="book-outline" size={22} color="#F5A524" />
+          <Text style={styles.rowLabel}>App Guide</Text>
+          <Ionicons name="chevron-forward" size={16} color={theme.tabIconDefault} />
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          onPress={() => router.push('/whats-new-modal')}
+        >
+          <Ionicons name="sparkles-outline" size={22} color="#34C759" />
+          <Text style={styles.rowLabel}>What\'s New</Text>
+          <Ionicons name="chevron-forward" size={16} color={theme.tabIconDefault} />
+        </Pressable>
+      </View>
+
       {/* App Info */}
       <View style={styles.section}>
-        <Text style={styles.versionText}>KbpsLive v1.0.0</Text>
+        <Text style={styles.versionText}>KbpsLive v{appVersion}</Text>
       </View>
     </ScrollView>
   );
@@ -286,12 +238,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.2,
-  },
-  appearanceDebug: {
-    marginTop: 8,
-    fontSize: 12,
-    fontWeight: '500',
-    opacity: 0.85,
   },
   row: {
     flexDirection: 'row',

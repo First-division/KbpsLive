@@ -7,6 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "generate:whats-new": "node scripts/generate-whats-new.js",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -24,6 +25,7 @@
     "expo-font": "~14.0.11",
     "expo-linking": "~8.0.11",
     "expo-router": "~6.0.23",
+    "expo-updates": "~56.0.17",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "~15.0.10",
