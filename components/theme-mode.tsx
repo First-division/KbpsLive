@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Appearance, AppState, Platform } from 'react-native';
-import { EventEmitter, requireOptionalNativeModule } from 'expo-modules-core';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -9,14 +8,6 @@ type ThemeModeContextValue = {
   colorScheme: 'light' | 'dark';
   preference: ThemePreference;
   setPreference: (preference: ThemePreference) => void;
-};
-
-type ThemeNativeModule = {
-  getSystemColorScheme?: () => Promise<unknown> | unknown;
-};
-
-type AnyEventEmitter = {
-  addListener: (eventName: string, listener: (event: Record<string, string>) => void) => { remove: () => void };
 };
 
 const STORAGE_KEY = 'kbpslive.themePreference';
@@ -28,25 +19,6 @@ function normalizeSystemScheme(value: 'light' | 'dark' | null | undefined): 'lig
 }
 
 export function ThemeModeProvider({ children }: { children: ReactNode }) {
-  const themeNativeModule = useMemo(
-    () => (Platform.OS === 'ios'
-      ? requireOptionalNativeModule<ThemeNativeModule>('ReactNativeWidgetExtension')
-      : null),
-    []
-  );
-
-  const nativeEmitter = useMemo((): AnyEventEmitter | null => {
-    if (!themeNativeModule) {
-      return null;
-    }
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return new EventEmitter(themeNativeModule as any) as unknown as AnyEventEmitter;
-    } catch {
-      return null;
-    }
-  }, [themeNativeModule]);
-
   const [preference, setPreferenceState] = useState<ThemePreference>('system');
   const [systemScheme, setSystemScheme] = useState<'light' | 'dark'>(
     normalizeSystemScheme(Appearance.getColorScheme())
@@ -55,36 +27,8 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
   const refreshSystemScheme = useCallback(async () => {
     let nextScheme = normalizeSystemScheme(Appearance.getColorScheme());
 
-    if (themeNativeModule?.getSystemColorScheme) {
-      try {
-        const nativeResult = await Promise.resolve(themeNativeModule.getSystemColorScheme());
-        if (nativeResult === 'dark' || nativeResult === 'light') {
-          nextScheme = nativeResult;
-        }
-      } catch {
-        // Keep JS appearance snapshot as fallback.
-      }
-    }
-
     setSystemScheme((previous) => (previous === nextScheme ? previous : nextScheme));
-  }, [themeNativeModule]);
-
-  // Push-based appearance updates from native UIViewController trait observer.
-  useEffect(() => {
-    if (!nativeEmitter) {
-      return;
-    }
-    const sub = nativeEmitter.addListener(
-      'onAppearanceChange',
-      (event: { colorScheme?: string }) => {
-        const scheme: 'light' | 'dark' = event.colorScheme === 'dark' ? 'dark' : 'light';
-        setSystemScheme((previous) => (previous === scheme ? previous : scheme));
-      }
-    );
-    return () => {
-      sub.remove();
-    };
-  }, [nativeEmitter]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,15 +81,19 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setSystemScheme(normalizeSystemScheme(Appearance.getColorScheme()));
+    void refreshSystemScheme();
+  }, [preference, refreshSystemScheme]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') {
+      return;
+    }
 
     const timer = setInterval(() => {
       void refreshSystemScheme();
-    }, 750);
+    }, 2000);
 
-    return () => {
-      clearInterval(timer);
-    };
+    return () => clearInterval(timer);
   }, [preference, refreshSystemScheme]);
 
   const setPreference = useCallback((nextPreference: ThemePreference) => {

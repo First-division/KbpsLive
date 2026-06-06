@@ -5,6 +5,23 @@ import { useRouter } from 'expo-router';
 import { LAUNCH_STORAGE_KEYS } from '@/constants/LaunchState';
 import { getOptionalUpdatesModule } from '@/components/optional-updates';
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 export function LaunchFlow() {
   const router = useRouter();
   const didPresentRef = useRef(false);
@@ -23,8 +40,8 @@ export function LaunchFlow() {
       try {
         console.log('[LaunchFlow] Reading AsyncStorage...');
         const [welcomeCompleted, lastSeenUpdateId] = await Promise.all([
-          AsyncStorage.getItem(LAUNCH_STORAGE_KEYS.welcomeCompleted),
-          AsyncStorage.getItem(LAUNCH_STORAGE_KEYS.lastSeenUpdateId),
+          withTimeout(AsyncStorage.getItem(LAUNCH_STORAGE_KEYS.welcomeCompleted), 1500, null),
+          withTimeout(AsyncStorage.getItem(LAUNCH_STORAGE_KEYS.lastSeenUpdateId), 1500, null),
         ]);
         console.log('[LaunchFlow] AsyncStorage read complete:', { welcomeCompleted, lastSeenUpdateId });
 
@@ -47,14 +64,18 @@ export function LaunchFlow() {
         if (updates?.isEnabled) {
           try {
             console.log('[LaunchFlow] Checking for updates...');
-            const update = await updates.checkForUpdateAsync();
+            const update = await withTimeout(
+              updates.checkForUpdateAsync(),
+              3500,
+              { isAvailable: false }
+            );
             console.log('[LaunchFlow] Update check result:', update);
             
             if (update.isAvailable) {
               console.log('[LaunchFlow] Update available, fetching...');
-              await updates.fetchUpdateAsync();
+              await withTimeout(updates.fetchUpdateAsync(), 6000, null);
               console.log('[LaunchFlow] Update fetched, reloading...');
-              await updates.reloadAsync();
+              await withTimeout(updates.reloadAsync(), 2000, undefined);
               console.log('[LaunchFlow] Reload triggered');
               return;
             }
