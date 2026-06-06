@@ -1,5 +1,4 @@
 import { Tabs } from 'expo-router';
-import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Platform, StyleSheet, Text as RNText, View as RNView } from 'react-native';
 import Colors from '@/constants/Colors';
@@ -10,8 +9,6 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme];
   const { isPlaying, artworkUri } = usePlaybackIndicator();
-  const iosVersion = Platform.OS === 'ios' ? Number.parseInt(String(Platform.Version), 10) || 0 : 0;
-  const canUseNativeTabs = Platform.OS === 'ios' && iosVersion >= 26;
 
   const renderLabel = (label: string) => {
     return ({ focused }: { focused: boolean }) => (
@@ -30,46 +27,6 @@ export default function TabLayout() {
       </RNView>
     );
   };
-
-  if (canUseNativeTabs) {
-    return (
-      <NativeTabs
-        tintColor={theme.tint}
-        labelStyle={{
-          fontSize: 11,
-          fontWeight: '600',
-          color: theme.tabIconDefault,
-        }}
-        iconColor={{
-          default: theme.tabIconDefault,
-          selected: theme.tabIconSelected,
-        }}
-        backgroundColor={null}
-        blurEffect="systemUltraThinMaterial"
-        shadowColor="transparent"
-        disableTransparentOnScrollEdge
-        minimizeBehavior="onScrollDown"
-      >
-        <NativeTabs.Trigger name="explore">
-          <Icon sf={{ default: 'safari', selected: 'safari.fill' }} />
-          <Label>Explore</Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="index">
-          <Icon sf="dot.radiowaves.left.and.right" />
-          <Label>Live</Label>
-          <NativeTabs.Trigger.TabBar blurEffect="systemChromeMaterial" />
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="recent">
-          <Icon sf={{ default: 'clock', selected: 'clock.fill' }} />
-          <Label>Recent</Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="settings">
-          <Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} />
-          <Label>Settings</Label>
-        </NativeTabs.Trigger>
-      </NativeTabs>
-    );
-  }
 
   return (
     <Tabs
