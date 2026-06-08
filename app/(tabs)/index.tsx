@@ -378,7 +378,10 @@ export default function HomeScreen() {
             },
           ]}
         />
-        <Text style={[styles.statusText, { color: theme.tabIconDefault }]}>
+        <Text
+          style={[styles.statusText, { color: theme.tabIconDefault }]}
+          testID="home-status-text"
+        >
           {status === 'playing' ? 'Live' :
            status === 'connecting' ? 'Connecting...' :
            status === 'error' ? 'Connection Error' : 'Ready to Play'}
@@ -388,6 +391,9 @@ export default function HomeScreen() {
       {/* Play / Pause Button */}
       <Pressable
         onPress={handleTogglePlayPause}
+        testID="home-play-toggle"
+        accessibilityRole="button"
+        accessibilityLabel="Play or pause stream"
         style={({ pressed }) => [
           styles.playButton,
           Platform.OS === 'ios' && styles.playButtonIOS,
@@ -448,6 +454,9 @@ export default function HomeScreen() {
           </View>
         ) : (
           <Pressable
+            testID="home-connect-button"
+            accessibilityRole="button"
+            accessibilityLabel="Open audio output picker"
             style={({ pressed }) => [
               styles.connectButton,
               { backgroundColor: theme.card, borderColor: theme.tabIconDefault },

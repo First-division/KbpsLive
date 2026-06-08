@@ -95,6 +95,9 @@ export default function RecentScreen() {
               </View>
 
               <Pressable
+                testID={`recent-favorite-${song.id}`}
+                accessibilityRole="button"
+                accessibilityLabel={`Toggle favorite for ${song.title}`}
                 style={({ pressed }) => [styles.favoriteButton, pressed && styles.favoriteButtonPressed]}
                 onPress={() => toggleFavorite(song)}
               >
