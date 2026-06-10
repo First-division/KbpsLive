@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView, Pressable, Linking } from 'react-native';
+import { StyleSheet, ScrollView, Pressable, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,11 +18,20 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme];
+  const bottomPadding = Platform.OS === 'android'
+    ? Math.max(insets.bottom + 120, 132)
+    : Math.max(insets.bottom + 40, 48);
 
   return (
     <ScrollView
       style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 8, 16) }]}
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingTop: Math.max(insets.top + 8, 16),
+          paddingBottom: bottomPadding,
+        },
+      ]}
     >
       <View style={[styles.topPill, { backgroundColor: theme.card, borderColor: theme.tabIconDefault }] }>
         <Text style={[styles.topPillText, { color: theme.text }]}>Explore</Text>
@@ -101,7 +110,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 40,
   },
   topPill: {
     alignSelf: 'center',

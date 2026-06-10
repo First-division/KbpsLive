@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kbpslive",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
@@ -60,17 +60,12 @@
         "expo-build-properties",
         {
           "ios": {
+            "deploymentTarget": "16.4",
             "buildReactNativeFromSource": true
           }
         }
       ],
-      [
-        "react-native-widget-extension",
-        {
-          "widgetsFolder": "widgets",
-          "frequentUpdates": true
-        }
-      ]
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true

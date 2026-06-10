@@ -411,18 +411,16 @@ struct RadioLiveActivity: Widget {
       return DynamicIsland {
         DynamicIslandExpandedRegion(.leading) {
           ArtworkView(urlString: context.state.artworkURL, variant: .expanded)
-            .frame(width: 78, height: 78)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .dynamicIsland(verticalPlacement: .belowIfTooWide)
-            .padding(.top, 8)
+            .frame(width: 60, height: 60)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .padding(.top, 6)
         }
         DynamicIslandExpandedRegion(.trailing) {
-          ExpandedWaveformView(isLive: context.state.isLive, level: context.state.waveformLevel, accentColor: waveformTint)
-            .frame(width: 182, height: 78, alignment: .trailing)
-            .padding(.top, 8)
-        }
-        DynamicIslandExpandedRegion(.bottom) {
-          VStack(alignment: .leading, spacing: 2) {
+          VStack(alignment: .trailing, spacing: 4) {
+            Text(context.attributes.stationName)
+              .font(.caption2)
+              .fontWeight(.semibold)
+              .lineLimit(1)
             Text(context.state.title)
               .font(.subheadline)
               .lineLimit(1)
@@ -431,7 +429,13 @@ struct RadioLiveActivity: Widget {
               .foregroundStyle(.secondary)
               .lineLimit(1)
           }
-          .padding(.horizontal, 4)
+          .multilineTextAlignment(.trailing)
+          .padding(.top, 6)
+        }
+        DynamicIslandExpandedRegion(.bottom) {
+          WaveformView(isLive: context.state.isLive, level: context.state.waveformLevel, accentColor: waveformTint)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 2)
         }
       } compactLeading: {
         CompactArtworkView(urlString: context.state.artworkURL, useCircle: false)

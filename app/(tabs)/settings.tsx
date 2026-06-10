@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text, View } from '@/components/Themed';
 import { useColorScheme } from '@/components/useColorScheme';
-import { useThemeMode, type ThemePreference } from '@/components/theme-mode';
+import { useThemeMode } from '@/components/theme-mode';
 import Colors from '@/constants/Colors';
 import { Station } from '@/constants/Station';
 
@@ -41,7 +41,7 @@ export default function SettingsScreen() {
   const { preference, setPreference } = useThemeMode();
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
-  const appearanceOptions: Array<{ value: ThemePreference; label: string }> = [
+  const appearanceOptions: Array<{ value: 'system' | 'light' | 'dark'; label: string }> = [
     { value: 'system', label: 'System' },
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
@@ -62,8 +62,19 @@ export default function SettingsScreen() {
         <View style={styles.aboutCard}>
           <Text style={styles.aboutName}>{Station.name}</Text>
           <Text style={styles.aboutTagline}>{Station.tagline}</Text>
-          <Text style={styles.aboutDetail}>{Station.location}</Text>
-          <Text style={styles.aboutDetail}>{Station.address}</Text>
+          {/* Removed location and address details for privacy reasons and safety reasons */}
+          {/* <Text style={styles.aboutDetail}>{Station.location}</Text> */}
+          {/* Removed location and address details for privacy reasons and safety reasons */}
+          {/* <Text style={styles.aboutDetail}>{Station.address}</Text> */}
+          <Text style={styles.aboutCredit}>
+            This app was made by Zackary Underwood.
+          </Text>
+          <Text style={styles.aboutCredit}>
+            It is dedicated to the KBPS radio station and built as a passion project.
+          </Text>
+          <Text style={styles.aboutCredit}>
+            There may be light upkeep over time, but user suggestions are always welcome.
+          </Text>
         </View>
       </View>
 
@@ -215,6 +226,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.6,
     lineHeight: 20,
+  },
+  aboutCredit: {
+    fontSize: 14,
+    opacity: 0.75,
+    lineHeight: 20,
+    marginTop: 10,
   },
   appearanceWrap: {
     flexDirection: 'row',

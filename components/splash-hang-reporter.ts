@@ -5,8 +5,7 @@ import { Platform } from 'react-native';
 const HANG_TIMEOUT_MS = 15000;
 const STORAGE_KEY = 'kbpslive:debug:lastHangReport';
 const CURRENT_LAUNCH_STATE_KEY = 'kbpslive:debug:currentLaunchState';
-const WEBHOOK_URL = process.env.EXPO_PUBLIC_HANG_REPORT_WEBHOOK_URL ?? '';
-const REPORT_EMAIL = process.env.EXPO_PUBLIC_HANG_REPORT_EMAIL ?? 'Underwoodzack159@gmail.com';
+const STARTUP_ISSUE_KEY = 'kbpslive:debug:startupIssue';
 
 type HangStageEvent = {
   stage: string;
@@ -19,7 +18,6 @@ type HangReport = {
   detectedAt: string;
   startedAt: string;
   elapsedMs: number;
-  notifyEmail: string;
   platform: string;
   osVersion: string;
   appVersion: string;
@@ -27,6 +25,14 @@ type HangReport = {
   stage: string;
   stageHistory: HangStageEvent[];
   reason?: string;
+};
+
+export type StartupIssue = {
+  type: 'splash-hang-detected' | 'previous-launch-aborted';
+  detectedAt: string;
+  stage: string;
+  reason?: string;
+  elapsedMs: number;
 };
 
 type LaunchStateSnapshot = {
@@ -92,7 +98,6 @@ function buildRecoveredAbortReport(previous: LaunchStateSnapshot): HangReport {
     elapsedMs: Number.isNaN(startedAtMsFromPrevious)
       ? 0
       : Math.max(0, now - startedAtMsFromPrevious),
-    notifyEmail: REPORT_EMAIL,
     platform: Platform.OS,
     osVersion: String(Platform.Version),
     appVersion: Constants.expoConfig?.version ?? 'unknown',
@@ -138,7 +143,6 @@ function buildReport(): HangReport {
     detectedAt: new Date(now).toISOString(),
     startedAt: new Date(startedAtMs || now).toISOString(),
     elapsedMs: Math.max(0, now - (startedAtMs || now)),
-    notifyEmail: REPORT_EMAIL,
     platform: Platform.OS,
     osVersion: String(Platform.Version),
     appVersion: Constants.expoConfig?.version ?? 'unknown',
@@ -156,21 +160,47 @@ async function deliverHangReport(report: HangReport): Promise<void> {
     undefined
   );
 
-  if (!WEBHOOK_URL) {
-    return;
+  const startupIssue: StartupIssue = {
+    type: report.type,
+    detectedAt: report.detectedAt,
+    stage: report.stage,
+    reason: report.reason,
+    elapsedMs: report.elapsedMs,
+  };
+
+  await withTimeout(
+    AsyncStorage.setItem(STARTUP_ISSUE_KEY, JSON.stringify(startupIssue)),
+    1200,
+    undefined
+  );
+}
+
+export async function consumeStartupIssue(): Promise<StartupIssue | null> {
+  const raw = await withTimeout(
+    AsyncStorage.getItem(STARTUP_ISSUE_KEY),
+    1000,
+    null
+  );
+
+  if (!raw) {
+    return null;
   }
 
   await withTimeout(
-    fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(report),
-    }),
-    3000,
-    null
+    AsyncStorage.removeItem(STARTUP_ISSUE_KEY),
+    1000,
+    undefined
   );
+
+  try {
+    const parsed = JSON.parse(raw) as StartupIssue;
+    if (!parsed || typeof parsed !== 'object' || typeof parsed.type !== 'string') {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 function pushStage(stage: string, details?: string) {

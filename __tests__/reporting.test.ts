@@ -1,11 +1,13 @@
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
+  removeItem: jest.fn(),
 }));
 
 let asyncStorage: {
   getItem: jest.Mock;
   setItem: jest.Mock;
+  removeItem: jest.Mock;
 };
 
 async function flushAsyncWork() {
@@ -21,10 +23,7 @@ describe('Startup And Crash Reporting', () => {
     asyncStorage = require('@react-native-async-storage/async-storage');
     asyncStorage.getItem.mockResolvedValue(null);
     asyncStorage.setItem.mockResolvedValue();
-
-    (globalThis as { fetch?: jest.Mock }).fetch = jest.fn().mockResolvedValue({ ok: true });
-    delete process.env.EXPO_PUBLIC_HANG_REPORT_WEBHOOK_URL;
-    delete process.env.EXPO_PUBLIC_HANG_REPORT_EMAIL;
+    asyncStorage.removeItem.mockResolvedValue();
   });
 
   afterEach(() => {
@@ -43,8 +42,28 @@ describe('Startup And Crash Reporting', () => {
 
     const payload = JSON.parse(String(hangCalls[0][1]));
     expect(payload.type).toBe('splash-hang-detected');
-    expect(payload.notifyEmail).toBe('Underwoodzack159@gmail.com');
     expect(payload.reason).toContain('Launch watchdog exceeded');
+
+    const startupIssueCalls = asyncStorage.setItem.mock.calls.filter(([key]) => key === 'kbpslive:debug:startupIssue');
+    expect(startupIssueCalls.length).toBeGreaterThan(0);
+  });
+
+  it('consumes startup issue once', async () => {
+    const reporter = require('@/components/splash-hang-reporter') as typeof import('@/components/splash-hang-reporter');
+
+    asyncStorage.getItem.mockResolvedValueOnce(JSON.stringify({
+      type: 'previous-launch-aborted',
+      detectedAt: '2026-06-07T00:00:00.000Z',
+      stage: 'launch-flow-reading-storage',
+      reason: 'App relaunched before launch flow marked completed',
+      elapsedMs: 1200,
+    }));
+
+    const issue = await reporter.consumeStartupIssue();
+
+    expect(issue).toBeTruthy();
+    expect(issue?.type).toBe('previous-launch-aborted');
+    expect(asyncStorage.removeItem).toHaveBeenCalledWith('kbpslive:debug:startupIssue');
   });
 
   it('captures JS fatal errors through global handler', async () => {
@@ -77,7 +96,6 @@ describe('Startup And Crash Reporting', () => {
     const payload = JSON.parse(String(crashCalls[0][1]));
     expect(payload.type).toBe('js-fatal-error');
     expect(payload.message).toBe('test-fatal-crash');
-    expect(payload.notifyEmail).toBe('Underwoodzack159@gmail.com');
     expect(originalHandler).toHaveBeenCalled();
   });
 });

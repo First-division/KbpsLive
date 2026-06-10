@@ -12,14 +12,27 @@ type ThemeModeContextValue = {
 
 const STORAGE_KEY = 'kbpslive.themePreference';
 
+function hasAsyncStorage(): boolean {
+  return typeof (AsyncStorage as any)?.getItem === 'function'
+    && typeof (AsyncStorage as any)?.setItem === 'function';
+}
+
 const ThemeModeContext = createContext<ThemeModeContextValue | null>(null);
+
+const FALLBACK_THEME_MODE_CONTEXT: ThemeModeContextValue = {
+  colorScheme: 'dark',
+  preference: 'dark',
+  setPreference: () => {
+    // No-op when theme provider is intentionally disabled for crash isolation.
+  },
+};
 
 function normalizeSystemScheme(value: 'light' | 'dark' | null | undefined): 'light' | 'dark' {
   return value === 'dark' ? 'dark' : 'light';
 }
 
 export function ThemeModeProvider({ children }: { children: ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+  const [preference, setPreferenceState] = useState<ThemePreference>('dark');
   const [systemScheme, setSystemScheme] = useState<'light' | 'dark'>(
     normalizeSystemScheme(Appearance.getColorScheme())
   );
@@ -34,6 +47,10 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const loadPreference = async () => {
+      if (!hasAsyncStorage()) {
+        return;
+      }
+
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (cancelled) {
@@ -103,7 +120,9 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
       void refreshSystemScheme();
     }
 
-    void AsyncStorage.setItem(STORAGE_KEY, nextPreference);
+    if (hasAsyncStorage()) {
+      void AsyncStorage.setItem(STORAGE_KEY, nextPreference);
+    }
   }, [refreshSystemScheme]);
 
   const colorScheme = preference === 'system' ? systemScheme : preference;
@@ -119,7 +138,7 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
 export function useThemeMode() {
   const context = useContext(ThemeModeContext);
   if (!context) {
-    throw new Error('useThemeMode must be used within ThemeModeProvider');
+    return FALLBACK_THEME_MODE_CONTEXT;
   }
   return context;
 }

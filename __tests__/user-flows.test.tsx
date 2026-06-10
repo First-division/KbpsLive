@@ -96,6 +96,13 @@ jest.mock('@/components/useColorScheme', () => ({
   useColorScheme: () => 'light',
 }));
 
+jest.mock('react-native-widget-extension', () => ({
+  areActivitiesEnabled: () => false,
+  startActivity: jest.fn(),
+  updateActivity: jest.fn(),
+  endActivity: jest.fn(),
+}));
+
 describe('User Flow Coverage', () => {
   beforeEach(() => {
     jest.clearAllMocks();

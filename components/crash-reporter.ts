@@ -3,12 +3,9 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 const STORAGE_KEY = 'kbpslive:debug:lastCrashReport';
-const WEBHOOK_URL = process.env.EXPO_PUBLIC_HANG_REPORT_WEBHOOK_URL ?? '';
-const REPORT_EMAIL = process.env.EXPO_PUBLIC_HANG_REPORT_EMAIL ?? 'Underwoodzack159@gmail.com';
 
 type CrashReport = {
   type: 'js-fatal-error' | 'js-nonfatal-error';
-  notifyEmail: string;
   detectedAt: string;
   platform: string;
   osVersion: string;
@@ -54,7 +51,6 @@ function buildReport(error: unknown, isFatal: boolean): CrashReport {
 
   return {
     type: isFatal ? 'js-fatal-error' : 'js-nonfatal-error',
-    notifyEmail: REPORT_EMAIL,
     detectedAt: new Date().toISOString(),
     platform: Platform.OS,
     osVersion: String(Platform.Version),
@@ -71,22 +67,6 @@ async function deliverReport(report: CrashReport): Promise<void> {
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(report)),
     1000,
     undefined
-  );
-
-  if (!WEBHOOK_URL) {
-    return;
-  }
-
-  await withTimeout(
-    fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(report),
-    }),
-    3000,
-    null
   );
 }
 

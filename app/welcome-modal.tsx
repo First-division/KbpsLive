@@ -53,11 +53,7 @@ export default function WelcomeModal() {
       entries.push([LAUNCH_STORAGE_KEYS.lastSeenUpdateId, currentUpdateId]);
     }
 
-    if (typeof AsyncStorage.multiSet === 'function') {
-      await AsyncStorage.multiSet(entries);
-    } else {
-      await Promise.all(entries.map(([key, value]) => AsyncStorage.setItem(key, value)));
-    }
+    await Promise.all(entries.map(([key, value]) => AsyncStorage.setItem(key, value)));
 
     router.back();
   };

@@ -1,0 +1,89 @@
+
+> kbpslive@1.0.0 test:use-cases
+> jest __tests__/user-flows.test.tsx --runInBand
+
+  console.log
+    [LaunchFlow] Starting launch flow...
+
+      at log (components/launch-flow.tsx:33:15)
+
+  console.log
+    [LaunchFlow] Reading AsyncStorage...
+
+      at log (components/launch-flow.tsx:41:17)
+
+  console.log
+    [LaunchFlow] AsyncStorage read complete: { welcomeCompleted: null, lastSeenUpdateId: null }
+
+      at log (components/launch-flow.tsx:46:17)
+
+  console.log
+    [LaunchFlow] Welcome not completed, pushing welcome-modal
+
+      at log (components/launch-flow.tsx:54:19)
+
+  console.log
+    [LaunchFlow] Starting launch flow...
+
+      at log (components/launch-flow.tsx:33:15)
+
+  console.log
+    [LaunchFlow] Reading AsyncStorage...
+
+      at log (components/launch-flow.tsx:41:17)
+
+  console.log
+    [LaunchFlow] AsyncStorage read complete: { welcomeCompleted: 'true', lastSeenUpdateId: 'older-update-id' }
+
+      at log (components/launch-flow.tsx:46:17)
+
+  console.log
+    [LaunchFlow] Welcome completed, checking for updates...
+
+      at log (components/launch-flow.tsx:60:17)
+
+  console.log
+    [LaunchFlow] Updates module: available
+
+      at log (components/launch-flow.tsx:62:17)
+
+  console.log
+    [LaunchFlow] Checking for updates...
+
+      at log (components/launch-flow.tsx:66:21)
+
+  console.log
+    [LaunchFlow] Update check result: { isAvailable: false }
+
+      at log (components/launch-flow.tsx:72:21)
+
+  console.log
+    [LaunchFlow] Current update ID: new-update-id Last seen: older-update-id
+
+      at log (components/launch-flow.tsx:89:17)
+
+  console.log
+    [LaunchFlow] New update detected, pushing whats-new-modal
+
+      at log (components/launch-flow.tsx:92:19)
+
+  console.log
+    [LaunchFlow] Launch flow complete
+
+      at log (components/launch-flow.tsx:97:17)
+
+PASS __tests__/user-flows.test.tsx
+  User Flow Coverage
+    ✓ LaunchFlow routes first-time users to welcome modal (75 ms)
+    ✓ LaunchFlow routes returning users to what's new on unseen update (55 ms)
+    ✓ Home screen toggles playback when play button is pressed (68 ms)
+    ✓ Explore opens KBPS news link (95 ms)
+    ✓ Recent toggles favorite for a song (15 ms)
+    ✓ Settings applies dark appearance preference (7 ms)
+    ✓ Settings opens app guide route (4 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       7 passed, 7 total
+Snapshots:   0 total
+Time:        0.828 s, estimated 1 s
+Ran all test suites matching /__tests__\/user-flows.test.tsx/i.

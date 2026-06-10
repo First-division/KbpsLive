@@ -1,3 +1,4 @@
+import UIKit
 internal import Expo
 import React
 import ReactAppDependencyProvider
@@ -13,6 +14,8 @@ class AppDelegate: ExpoAppDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    configureSystemAppearance()
+
     let delegate = ReactNativeDelegate()
     let factory = ExpoReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
@@ -30,6 +33,37 @@ class AppDelegate: ExpoAppDelegate {
 #endif
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  private func configureSystemAppearance() {
+    let barEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+
+    let tabBarAppearance = UITabBarAppearance()
+    tabBarAppearance.configureWithTransparentBackground()
+    tabBarAppearance.backgroundEffect = barEffect
+    tabBarAppearance.backgroundColor = .clear
+    tabBarAppearance.shadowColor = .clear
+
+    let itemAppearance = UITabBarItemAppearance(style: .stacked)
+    itemAppearance.normal.iconColor = UIColor.secondaryLabel
+    itemAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.secondaryLabel]
+    itemAppearance.selected.iconColor = UIColor.label
+    itemAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.label]
+    tabBarAppearance.stackedLayoutAppearance = itemAppearance
+    tabBarAppearance.inlineLayoutAppearance = itemAppearance
+    tabBarAppearance.compactInlineLayoutAppearance = itemAppearance
+
+    let navBarAppearance = UINavigationBarAppearance()
+    navBarAppearance.configureWithTransparentBackground()
+    navBarAppearance.backgroundEffect = barEffect
+    navBarAppearance.backgroundColor = .clear
+    navBarAppearance.shadowColor = .clear
+
+    UITabBar.appearance().standardAppearance = tabBarAppearance
+    UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+    UINavigationBar.appearance().standardAppearance = navBarAppearance
+    UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
+    UINavigationBar.appearance().compactAppearance = navBarAppearance
   }
 
   // Linking API
