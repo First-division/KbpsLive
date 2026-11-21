@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView, Pressable, Linking } from 'react-native';
+import { StyleSheet, ScrollView, Pressable, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
@@ -50,7 +50,10 @@ export default function SettingsScreen() {
   return (
     <ScrollView
       style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 8, 16) }]}
+      contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : 'never'}
+      contentContainerStyle={[styles.content, {
+        paddingTop: Math.max(insets.top + 8, 16),
+      }]}
     >
       <View style={[styles.topPill, { backgroundColor: theme.card, borderColor: theme.tabIconDefault }] }>
         <Text style={[styles.topPillText, { color: theme.text }]}>Settings</Text>
@@ -150,7 +153,7 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Learn</Text>
         <Pressable
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          onPress={() => router.push('/welcome-modal')}
+          onPress={() => router.push('/app-guide')}
         >
           <Ionicons name="book-outline" size={22} color="#F5A524" />
           <Text style={styles.rowLabel}>App Guide</Text>
@@ -161,7 +164,7 @@ export default function SettingsScreen() {
           onPress={() => router.push('/whats-new-modal')}
         >
           <Ionicons name="sparkles-outline" size={22} color="#34C759" />
-          <Text style={styles.rowLabel}>What\'s New</Text>
+          <Text style={styles.rowLabel}>{"What's New"}</Text>
           <Ionicons name="chevron-forward" size={16} color={theme.tabIconDefault} />
         </Pressable>
       </View>

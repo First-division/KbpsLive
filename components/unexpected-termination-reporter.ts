@@ -97,7 +97,10 @@ export function startUnexpectedTerminationMonitor() {
   void (async () => {
     const previous = await readSessionState();
     await recordUnexpectedTerminationIfNeeded(previous);
-    await persistSessionState(AppState.currentState);
+    const state = AppState.currentState;
+    if (state === 'active' || state === 'background' || state === 'inactive' || state === 'unknown' || state === 'extension') {
+      await persistSessionState(state);
+    }
   })();
 
   const appStateSub = AppState.addEventListener('change', (nextState) => {

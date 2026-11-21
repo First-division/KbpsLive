@@ -18,6 +18,10 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Secrets
+google-service-account.json
+kbps-live-*.json
+
 # Metro
 .metro-health-check*
 

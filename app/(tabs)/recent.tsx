@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, RefreshControl, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -44,6 +44,7 @@ export default function RecentScreen() {
   return (
     <ScrollView
       style={[styles.scrollView, { backgroundColor: theme.background }]}
+      contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : 'never'}
       contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 12, 20) }]}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
     >

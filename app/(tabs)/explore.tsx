@@ -25,6 +25,7 @@ export default function ExploreScreen() {
   return (
     <ScrollView
       style={[styles.scrollView, { backgroundColor: theme.background }]}
+      contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : 'never'}
       contentContainerStyle={[
         styles.content,
         {

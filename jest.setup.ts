@@ -14,6 +14,9 @@ jest.mock('expo-blur', () => ({
 
 jest.mock('react-airplay', () => ({
   AirplayButton: () => null,
+  showRoutePicker: jest.fn(async () => undefined),
+  getAvAudioSessionRoutes: jest.fn(() => [{ portName: 'This iPhone' }]),
+  onAvAudioSessionRoutesChanged: jest.fn(() => () => undefined),
   useAvAudioSessionRoutes: () => [{ portName: 'This iPhone' }],
 }));
 

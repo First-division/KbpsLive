@@ -1,0 +1,151 @@
+diff --git a/node_modules/expo-audio/ios/AudioModule.swift b/node_modules/expo-audio/ios/AudioModule.swift
+index 6d26c72..99e0193 100644
+--- a/node_modules/expo-audio/ios/AudioModule.swift
++++ b/node_modules/expo-audio/ios/AudioModule.swift
+@@ -284,7 +284,7 @@ public class AudioModule: Module {
+       Function("updateLockScreenMetadata") { (player: AudioPlayer, metadata: Metadata?) in
+         if player.isActiveForLockScreen {
+           player.metadata = metadata
+-          MediaController.shared.refreshActivePlayable(player, options: player.lockScreenOptions)
++          MediaController.shared.updateNowPlayingInfo(for: player)
+         }
+       }
+ 
+diff --git a/node_modules/expo-audio/ios/AudioPlayer.swift b/node_modules/expo-audio/ios/AudioPlayer.swift
+index 0f68a52..82e86e1 100644
+--- a/node_modules/expo-audio/ios/AudioPlayer.swift
++++ b/node_modules/expo-audio/ios/AudioPlayer.swift
+@@ -1,11 +1,17 @@
+ import ExpoModulesCore
+ import Combine
++import Foundation
+ 
+ private enum AudioConstants {
+   static let playbackStatus = "playbackStatusUpdate"
+   static let audioSample = "audioSampleUpdate"
+ }
+ 
++private let activityPauseNotificationName = Notification.Name("KbpsLive.pauseRadio")
++private let activityPauseRequestDefaultsKey = "kbpslive.pause.requestID"
++private let activityPauseHandledDefaultsKey = "kbpslive.pause.handledID"
++private let activityPauseAppGroupIdentifier = "group.com.firstdivisioncaptain.KbpsLive"
++
+ public class AudioPlayer: SharedRef<AVPlayer>, Playable, LockScreenPlayable {
+   let id = UUID().uuidString
+   var shouldCorrectPitch = true
+@@ -57,6 +63,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable, LockScreenPlayable {
+   private var timeToken: Any?
+   private var cancellables = Set<AnyCancellable>()
+   private var endObserver: NSObjectProtocol?
++  private var activityPauseObserver: NSObjectProtocol?
++  private var darwinPauseObserver: UnsafeMutableRawPointer?
+ 
+   private var audioProcessor: AudioTapProcessor?
+   private var tapInstalled = false
+@@ -98,6 +106,15 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable, LockScreenPlayable {
+     super.init(ref)
+ 
+     setupPublisher()
++    activityPauseObserver = NotificationCenter.default.addObserver(
++      forName: activityPauseNotificationName,
++      object: nil,
++      queue: .main
++    ) { [weak self] notification in
++      guard let self else { return }
++      self.handleActivityPauseRequest(response: notification.object as? NSMutableDictionary)
++    }
++    registerDarwinPauseObserver()
+   }
+ 
+   var isLoaded: Bool {
+@@ -532,6 +549,20 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable, LockScreenPlayable {
+   }
+ 
+   public override func sharedObjectWillRelease() {
++    if let darwinPauseObserver {
++      CFNotificationCenterRemoveObserver(
++        CFNotificationCenterGetDarwinNotifyCenter(),
++        darwinPauseObserver,
++        nil,
++        nil
++      )
++      self.darwinPauseObserver = nil
++    }
++
++    if let activityPauseObserver {
++      NotificationCenter.default.removeObserver(activityPauseObserver)
++      self.activityPauseObserver = nil
++    }
+     onRelease?()
+     onRelease = nil
+     ref.currentItem?.cancelPendingSeeks()
+@@ -546,4 +577,44 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable, LockScreenPlayable {
+     audioProcessor?.invalidate()
+     audioProcessor = nil
+   }
++
++  private func handleActivityPauseRequest(response: NSMutableDictionary?) {
++    let defaults = UserDefaults(suiteName: activityPauseAppGroupIdentifier)
++    let requestID = defaults?.string(forKey: activityPauseRequestDefaultsKey)
++
++    if ref.timeControlStatus != .paused {
++      ref.pause()
++      updateStatus(with: ["playing": false, "timeControlStatus": "paused"])
++    }
++
++    if let requestID {
++      defaults?.set(requestID, forKey: activityPauseHandledDefaultsKey)
++    }
++    response?["paused"] = true
++  }
++
++  private func registerDarwinPauseObserver() {
++    guard darwinPauseObserver == nil else {
++      return
++    }
++
++    let observer = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
++    darwinPauseObserver = observer
++    CFNotificationCenterAddObserver(
++      CFNotificationCenterGetDarwinNotifyCenter(),
++      observer,
++      { _, observer, _, _, _ in
++        guard let observer else {
++          return
++        }
++        let player = Unmanaged<AudioPlayer>.fromOpaque(observer).takeUnretainedValue()
++        DispatchQueue.main.async {
++          player.handleActivityPauseRequest(response: nil)
++        }
++      },
++      activityPauseNotificationName.rawValue as CFString,
++      nil,
++      .deliverImmediately
++    )
++  }
+ }
+diff --git a/node_modules/expo-audio/ios/MediaController.swift b/node_modules/expo-audio/ios/MediaController.swift
+index 9b66e45..69ceec4 100644
+--- a/node_modules/expo-audio/ios/MediaController.swift
++++ b/node_modules/expo-audio/ios/MediaController.swift
+@@ -104,7 +104,8 @@ class MediaController {
+       currentArtworkItemIdentifier = nextArtworkItemIdentifier
+     }
+ 
+-    var nowPlayingInfo = nowPlayingInfoCenter.nowPlayingInfo ?? [String: Any]()
++    let previousInfo = nowPlayingInfoCenter.nowPlayingInfo ?? [String: Any]()
++    var nowPlayingInfo = previousInfo
+ 
+     applyPlaybackInfo(&nowPlayingInfo, for: playable)
+ 
+@@ -117,7 +118,9 @@ class MediaController {
+       applyAssetMetadata(&nowPlayingInfo, for: playable)
+     }
+ 
+-    nowPlayingInfoCenter.nowPlayingInfo = nowPlayingInfo
++    if !NSDictionary(dictionary: nowPlayingInfo).isEqual(to: previousInfo) {
++      nowPlayingInfoCenter.nowPlayingInfo = nowPlayingInfo
++    }
+   }
+ 
+   private func applyPlaybackInfo(_ info: inout [String: Any], for playable: any LockScreenPlayable) {

@@ -1,4 +1,5 @@
 import ActivityKit
+import AppIntents
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import SwiftUI
@@ -223,145 +224,61 @@ private struct CompactArtworkView: View {
   }
 }
 
-private struct WaveformView: View {
-  let isLive: Bool
+private struct LiveWaveformView: View {
   let level: Double
-  let accentColor: Color
+  let color: Color
+  let compact: Bool
 
-  private let barHeights: [CGFloat] = [10, 14, 20, 16, 22, 15]
-  private let phaseOffsets: [Double] = [0.2, 1.0, 2.3, 3.7, 4.5, 5.2]
+  private var barCount: Int { compact ? 4 : 5 }
+  private var barWidth: CGFloat { compact ? 2.0 : 3.0 }
+  private var minHeight: CGFloat { compact ? 4 : 7 }
+  private var maxHeight: CGFloat { compact ? 14 : 26 }
 
   var body: some View {
-    TimelineView(.periodic(from: .now, by: 0.09)) { timeline in
-      HStack(alignment: .bottom, spacing: 3) {
-        ForEach(Array(barHeights.enumerated()), id: \.offset) { index, height in
-          Capsule()
-            .fill(
-              isLive
-                ? LinearGradient(
-                  colors: [accentColor.opacity(0.98), accentColor.opacity(0.6)],
-                  startPoint: .top,
-                  endPoint: .bottom
-                )
-                : LinearGradient(
-                  colors: [Color.gray.opacity(0.55), Color.gray.opacity(0.35)],
-                  startPoint: .top,
-                  endPoint: .bottom
-                )
-            )
-            .frame(width: 3.4, height: barHeight(base: height, index: index, date: timeline.date))
+    TimelineView(.animation(minimumInterval: compact ? 0.22 : 0.16, paused: false)) { timeline in
+      let phase = timeline.date.timeIntervalSinceReferenceDate
+      HStack(alignment: .bottom, spacing: compact ? 1.6 : 2.4) {
+        ForEach(0 ..< barCount, id: \.self) { index in
+          RoundedRectangle(cornerRadius: barWidth, style: .continuous)
+            .fill(color)
+            .frame(width: barWidth, height: barHeight(index: index, phase: phase))
         }
       }
-      .frame(height: 30, alignment: .bottom)
-      .padding(.horizontal, 8)
-      .padding(.vertical, 6)
-      .background(Color.black.opacity(0.24), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-      .overlay {
-        RoundedRectangle(cornerRadius: 11, style: .continuous)
-          .stroke(Color.white.opacity(0.1), lineWidth: 0.7)
-      }
+      .frame(height: maxHeight, alignment: .bottom)
+      .accessibilityLabel("Live waveform")
     }
   }
 
-  private func barHeight(base: CGFloat, index: Int, date: Date) -> CGFloat {
-    let clamped = CGFloat(max(0, min(1, level)))
-    let reactiveLevel = isLive ? pow(clamped, 0.72) : clamped
-    let baseline = isLive ? max(0.18, reactiveLevel) : 0.08
-    let t = date.timeIntervalSinceReferenceDate
-    let phase = phaseOffsets[index]
-    let fast = CGFloat((sin((t * 11.4) + phase) + 1) / 2)
-    let slow = CGFloat((sin((t * 3.4) + phase * 0.6) + 1) / 2)
-    let motion = (0.56 + fast * 0.78) * (0.8 + slow * 0.36)
-    let amplitude = (0.34 + baseline * 1.45) * motion
-    return min(30, max(isLive ? 5 : 4, base * amplitude))
+  private func barHeight(index: Int, phase: TimeInterval) -> CGFloat {
+    let normalizedLevel = max(0.06, min(1, level))
+    let fastWave = (sin((phase * 5.3) + Double(index) * 1.2) + 1) / 2
+    let slowWave = (sin((phase * 2.4) + Double(index) * 0.45 + normalizedLevel * 2.3) + 1) / 2
+    let motion = (fastWave * 0.7) + (slowWave * 0.3)
+    let amplitude = minHeight + CGFloat(normalizedLevel) * (maxHeight - minHeight)
+    let animatedHeight = minHeight + motion * (amplitude - minHeight)
+    return max(minHeight, min(maxHeight, animatedHeight))
   }
 }
 
-private struct ExpandedWaveformView: View {
-  let isLive: Bool
-  let level: Double
-  let accentColor: Color
+private struct PauseRadioButton: View {
+  let size: CGFloat
 
-  private let barHeights: [CGFloat] = [12, 18, 24, 20, 28, 19, 26, 22, 30, 17]
-  private let phaseOffsets: [Double] = [0.15, 0.8, 1.7, 2.5, 3.1, 3.9, 4.7, 5.3, 6.0, 6.6]
+  init(size: CGFloat = 40) {
+    self.size = size
+  }
 
   var body: some View {
-    TimelineView(.periodic(from: .now, by: 0.09)) { timeline in
-      HStack(alignment: .bottom, spacing: 4) {
-        ForEach(Array(barHeights.enumerated()), id: \.offset) { index, height in
-          Capsule()
-            .fill(
-              isLive
-                ? LinearGradient(
-                  colors: [accentColor.opacity(0.98), accentColor.opacity(0.62)],
-                  startPoint: .top,
-                  endPoint: .bottom
-                )
-                : LinearGradient(
-                  colors: [Color.gray.opacity(0.58), Color.gray.opacity(0.38)],
-                  startPoint: .top,
-                  endPoint: .bottom
-                )
-            )
-            .frame(width: 4.2, height: barHeight(base: height, index: index, date: timeline.date))
-        }
+    if #available(iOSApplicationExtension 17.0, *) {
+      Button(intent: PauseRadioIntent()) {
+        Image(systemName: "pause.fill")
+          .font(.system(size: size * 0.42, weight: .bold))
+          .foregroundStyle(.white)
+          .frame(width: size, height: size)
+          .background(Color.white.opacity(0.18), in: Circle())
       }
-      .frame(height: 38, alignment: .bottom)
-      .padding(.horizontal, 12)
-      .padding(.vertical, 7)
-      .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-      .overlay {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-          .stroke(Color.white.opacity(0.12), lineWidth: 0.75)
-      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Pause radio")
     }
-  }
-
-  private func barHeight(base: CGFloat, index: Int, date: Date) -> CGFloat {
-    let clamped = CGFloat(max(0, min(1, level)))
-    let reactiveLevel = isLive ? pow(clamped, 0.72) : clamped
-    let baseline = isLive ? max(0.2, reactiveLevel) : 0.1
-    let t = date.timeIntervalSinceReferenceDate
-    let phase = phaseOffsets[index]
-    let fast = CGFloat((sin((t * 11.8) + phase) + 1) / 2)
-    let slow = CGFloat((sin((t * 3.6) + phase * 0.62) + 1) / 2)
-    let motion = (0.58 + fast * 0.8) * (0.82 + slow * 0.34)
-    let amplitude = (0.36 + baseline * 1.5) * motion
-    return min(38, max(isLive ? 6 : 4, base * amplitude))
-  }
-}
-
-private struct CompactWaveformView: View {
-  let isLive: Bool
-  let level: Double
-  let accentColor: Color
-
-  private let barHeights: [CGFloat] = [7, 11, 15, 10]
-  private let phaseOffsets: [Double] = [0.3, 1.2, 2.8, 4.1]
-
-  var body: some View {
-    TimelineView(.periodic(from: .now, by: 0.09)) { timeline in
-      HStack(alignment: .bottom, spacing: 1.6) {
-        ForEach(Array(barHeights.enumerated()), id: \.offset) { index, height in
-          Capsule()
-            .fill(isLive ? accentColor.opacity(0.96) : Color.gray.opacity(0.5))
-            .frame(width: 2, height: barHeight(base: height, index: index, date: timeline.date))
-        }
-      }
-      .frame(height: 18, alignment: .bottom)
-    }
-  }
-
-  private func barHeight(base: CGFloat, index: Int, date: Date) -> CGFloat {
-    let clamped = CGFloat(max(0, min(1, level)))
-    let reactiveLevel = isLive ? pow(clamped, 0.72) : clamped
-    let baseline = isLive ? max(0.16, reactiveLevel) : 0.06
-    let t = date.timeIntervalSinceReferenceDate
-    let phase = phaseOffsets[index]
-    let fast = CGFloat((sin((t * 12.6) + phase) + 1) / 2)
-    let slow = CGFloat((sin((t * 3.4) + phase * 0.7) + 1) / 2)
-    let amplitude = (0.34 + baseline * 1.35) * (0.6 + fast * 0.72) * (0.82 + slow * 0.3)
-    return min(18, max(isLive ? 4 : 3, base * amplitude))
   }
 }
 
@@ -400,7 +317,12 @@ struct RadioLiveActivity: Widget {
 
         Spacer(minLength: 8)
 
-        WaveformView(isLive: context.state.isLive, level: context.state.waveformLevel, accentColor: waveformTint)
+        if context.state.isLive {
+          VStack(spacing: 8) {
+            LiveWaveformView(level: context.state.waveformLevel, color: waveformTint, compact: false)
+            PauseRadioButton()
+          }
+        }
       }
       .padding(12)
       .activityBackgroundTint(Color.black)
@@ -413,34 +335,46 @@ struct RadioLiveActivity: Widget {
           ArtworkView(urlString: context.state.artworkURL, variant: .expanded)
             .frame(width: 60, height: 60)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .padding(.top, 6)
+            .frame(maxHeight: .infinity, alignment: .center)
         }
         DynamicIslandExpandedRegion(.trailing) {
-          VStack(alignment: .trailing, spacing: 4) {
-            Text(context.attributes.stationName)
+          HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            LiveWaveformView(level: context.state.waveformLevel, color: waveformTint, compact: false)
+          }
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+          .padding(.trailing, 2)
+        }
+        DynamicIslandExpandedRegion(.bottom, priority: 1) {
+          VStack(alignment: .center, spacing: 2) {
+            Text(context.attributes.stationName.uppercased())
               .font(.caption2)
               .fontWeight(.semibold)
               .lineLimit(1)
+              .minimumScaleFactor(0.8)
             Text(context.state.title)
               .font(.subheadline)
               .lineLimit(1)
+              .minimumScaleFactor(0.82)
             Text(context.state.subtitle)
               .font(.caption)
               .foregroundStyle(.secondary)
               .lineLimit(1)
+              .minimumScaleFactor(0.82)
+            if context.state.isLive {
+              PauseRadioButton(size: 36)
+                .padding(.top, 3)
+                .padding(.bottom, 3)
+            }
           }
-          .multilineTextAlignment(.trailing)
-          .padding(.top, 6)
-        }
-        DynamicIslandExpandedRegion(.bottom) {
-          WaveformView(isLive: context.state.isLive, level: context.state.waveformLevel, accentColor: waveformTint)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 2)
+          .frame(maxWidth: .infinity, alignment: .center)
+          .multilineTextAlignment(.center)
+          .padding(.top, 2)
         }
       } compactLeading: {
         CompactArtworkView(urlString: context.state.artworkURL, useCircle: false)
       } compactTrailing: {
-        CompactWaveformView(isLive: context.state.isLive, level: context.state.waveformLevel, accentColor: waveformTint)
+        LiveWaveformView(level: context.state.waveformLevel, color: waveformTint, compact: true)
       } minimal: {
         CompactArtworkView(urlString: context.state.artworkURL, useCircle: true)
       }

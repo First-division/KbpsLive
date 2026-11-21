@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 16.19.3",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -12,13 +12,20 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.2"
+      }
     }
   },
   "submit": {
     "production": {
       "ios": {
         "ascAppId": "6776120714"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./kbps-live-c2a1ba72bda7.json",
+        "track": "alpha"
       }
     }
   }

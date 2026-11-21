@@ -7,15 +7,19 @@ import 'react-native-reanimated';
 
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ThemeModeProvider, useThemeMode } from '@/components/theme-mode';
+import { supportsIOSNativeTabCompaction } from '@/constants/platform';
 
-// Temporary iOS crash mitigation: avoid native screen primitives during launch.
+// Keep legacy startup mitigation on older iOS while enabling native screens
+// where native tab minimization relies on platform screen primitives.
 if (Platform.OS === 'ios') {
-  enableScreens(false);
-  enableFreeze(false);
+  const supportsNativeTabCompaction = supportsIOSNativeTabCompaction(Platform.Version);
+  enableScreens(supportsNativeTabCompaction);
+  enableFreeze(supportsNativeTabCompaction);
 }
 
 export const unstable_settings = {
   anchor: '(tabs)',
+  initialRouteName: '(tabs)',
 };
 
 function RootLayoutNav() {
@@ -24,7 +28,10 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'none' }} />
+        <Stack.Screen name="app-guide" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="welcome-modal" options={{ presentation: 'modal', headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="whats-new-modal" options={{ presentation: 'modal', headerShown: false, gestureEnabled: false }} />
       </Stack>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>

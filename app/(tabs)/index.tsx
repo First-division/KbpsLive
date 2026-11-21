@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Image, Pressable, ActivityIndicator, Platform, Alert } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { StyleSheet, Image, Pressable, ActivityIndicator, Platform, Alert, AppState } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,22 +8,43 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { useAudioStream } from '@/hooks/useAudioStream';
 import { useNowPlaying } from '@/hooks/useNowPlaying';
-import { setPlaybackIndicatorArtwork, usePlaybackIndicator } from '@/hooks/useAudioStream';
+import { setPlaybackIndicatorArtwork } from '@/hooks/useAudioStream';
 import { Station } from '@/constants/Station';
 
-type LiveActivityBridge = {
-  areActivitiesEnabled: () => boolean;
-  startActivity: (...args: any[]) => Promise<string> | string;
-  endActivity: (...args: any[]) => Promise<string> | string;
+type AirplayModule = {
+  showRoutePicker: (options?: { prioritizesVideoDevices?: boolean }) => Promise<void>;
+  getAvAudioSessionRoutes?: () => Array<{ portName?: string }>;
+  onAvAudioSessionRoutesChanged?: (callback: (routes: Array<{ portName?: string }>) => void) => () => void;
 };
 
-function getLiveActivityBridge(): LiveActivityBridge | null {
+function endLegacyLiveActivities() {
+  if (Platform.OS !== 'ios') {
+    return;
+  }
+
+  try {
+    const bridge = require('react-native-widget-extension') as {
+      endActivity: () => Promise<string>;
+    };
+    void bridge.endActivity().then((result) => {
+      if (result.startsWith('end-error:')) {
+        console.warn('[LiveActivity] Unable to end legacy activities:', result);
+      }
+    }).catch((error: unknown) => {
+      console.warn('[LiveActivity] Unable to end legacy activities:', error);
+    });
+  } catch (error) {
+    console.warn('[LiveActivity] Unable to load legacy activity bridge:', error);
+  }
+}
+
+function getAirplayModule(): AirplayModule | null {
   if (Platform.OS !== 'ios') {
     return null;
   }
 
   try {
-    return require('react-native-widget-extension') as LiveActivityBridge;
+    return require('react-airplay') as AirplayModule;
   } catch {
     return null;
   }
@@ -35,13 +56,11 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme];
-  const { status, error, togglePlayPause } = useAudioStream();
-  const playbackIndicator = usePlaybackIndicator();
+  const { status, error, togglePlayPause, setLockScreenMetadata } = useAudioStream();
   const isPlaying = status === 'playing';
   const isConnecting = status === 'connecting';
-  const nowPlaying = useNowPlaying(isPlaying);
+  const nowPlaying = useNowPlaying(status === 'playing' || status === 'connecting');
   const [artworkFailed, setArtworkFailed] = useState(false);
-  const lastLiveActivityKeyRef = useRef<string | null>(null);
   const playGlyphColor = colorScheme === 'dark' ? '#ffffff' : '#11181C';
   const bottomControlsPadding = Platform.OS === 'ios'
     ? Math.max(insets.bottom + 72, 88)
@@ -49,17 +68,7 @@ export default function HomeScreen() {
   const artworkUrl = nowPlaying.artwork?.trim();
   const hasRealArtwork = Boolean(artworkUrl) && artworkUrl !== Station.defaultArtwork;
   const liveActivityArtwork = hasRealArtwork ? artworkUrl : Station.defaultArtwork;
-  const waveformLevel = isPlaying
-    ? Math.max(0.12, Math.round(playbackIndicator.audioLevel * 4) / 4)
-    : 0.08;
-  const liveActivityKey = isPlaying
-    ? [
-      nowPlaying.title.trim() || Station.name,
-      nowPlaying.artist.trim() || Station.tagline,
-      liveActivityArtwork,
-      waveformLevel.toFixed(2),
-    ].join('|')
-    : 'inactive';
+  const [currentOutput, setCurrentOutput] = useState('This iPhone');
 
   const handleTogglePlayPause = useCallback(() => {
     togglePlayPause();
@@ -74,60 +83,51 @@ export default function HomeScreen() {
   }, [liveActivityArtwork]);
 
   useEffect(() => {
+    setLockScreenMetadata({
+      title: nowPlaying.title.trim() || Station.name,
+      artist: nowPlaying.artist.trim() || Station.tagline,
+      artworkUrl: liveActivityArtwork,
+    });
+  }, [liveActivityArtwork, nowPlaying.artist, nowPlaying.title, setLockScreenMetadata]);
+
+  useEffect(() => {
     if (Platform.OS !== 'ios') {
       return;
     }
 
-    const liveActivity = getLiveActivityBridge();
-    if (!liveActivity) {
-      return;
-    }
+    const airplay = getAirplayModule();
+    if (!airplay) return;
 
-    let isCancelled = false;
-
-    const syncLiveActivity = async () => {
+    const updateRoutes = (routes: Array<{ portName?: string }>) => {
+      const names = routes.map((route) => route.portName?.trim()).filter(Boolean);
+      setCurrentOutput(names.length ? names.join(', ') : 'This iPhone');
+    };
+    const refreshRoutes = () => {
       try {
-        if (!isPlaying) {
-          if (lastLiveActivityKeyRef.current !== null) {
-            await liveActivity.endActivity();
-            if (!isCancelled) {
-              lastLiveActivityKeyRef.current = null;
-            }
-          }
-          return;
-        }
-
-        if (!liveActivity.areActivitiesEnabled()) {
-          return;
-        }
-
-        if (lastLiveActivityKeyRef.current === liveActivityKey) {
-          return;
-        }
-
-        await liveActivity.startActivity(
-          nowPlaying.title.trim() || Station.name,
-          nowPlaying.artist.trim() || Station.tagline,
-          Station.name,
-          liveActivityArtwork,
-          true,
-          waveformLevel
-        );
-
-        if (!isCancelled) {
-          lastLiveActivityKeyRef.current = liveActivityKey;
-        }
-      } catch {
-        // Keep the radio screen working even if the Live Activity bridge fails.
+        if (airplay.getAvAudioSessionRoutes) updateRoutes(airplay.getAvAudioSessionRoutes());
+      } catch (error) {
+        console.warn('[AirPlay] Unable to read audio output:', error);
       }
     };
-
-    void syncLiveActivity();
-
+    refreshRoutes();
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = airplay.onAvAudioSessionRoutesChanged?.(updateRoutes);
+    } catch (error) {
+      console.warn('[AirPlay] Unable to observe audio output:', error);
+    }
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshRoutes();
+    });
     return () => {
-      isCancelled = true;
+      unsubscribe?.();
+      appStateSubscription.remove();
     };
-  }, [isPlaying, liveActivityArtwork, liveActivityKey, nowPlaying.artist, nowPlaying.title, waveformLevel]);
+  }, []);
+
+  useEffect(() => {
+    endLegacyLiveActivities();
+  }, []);
 
   const artworkSource = useMemo(
     () => (artworkFailed || !hasRealArtwork
@@ -136,16 +136,30 @@ export default function HomeScreen() {
     [artworkFailed, hasRealArtwork, nowPlaying.artwork]
   );
 
-  const handleConnectPress = () => {
-    Alert.alert(
-      'Audio Output',
-      Platform.OS === 'ios'
-        ? 'AirPlay picker is temporarily disabled for stability. Use Control Center audio output selection for now.'
-        : 'Use your system audio output picker to connect Bluetooth speakers or headphones.'
-    );
-  };
+  const handleConnectPress = useCallback(async () => {
+    if (Platform.OS !== 'ios') {
+      Alert.alert(
+        'Audio Output',
+        'Use your system audio output picker to connect Bluetooth speakers or headphones.'
+      );
+      return;
+    }
 
-  const currentOutput = 'This iPhone';
+    const airplay = getAirplayModule();
+    if (!airplay) {
+      Alert.alert('AirPlay Unavailable', 'AirPlay controls are not available on this device right now.');
+      return;
+    }
+
+    try {
+      await airplay.showRoutePicker({ prioritizesVideoDevices: false });
+
+    } catch (error) {
+      console.warn('[AirPlay] Unable to open route picker:', error);
+      Alert.alert('AirPlay Error', 'Unable to open the AirPlay picker. Please try again.');
+    }
+  }, []);
+
   const buttonSurface = colorScheme === 'dark' ? theme.card : '#E8EDF3';
   const buttonBorder = colorScheme === 'dark' ? '#2A2F36' : '#D9E0E8';
   const buttonGlyphColor = theme.text;
@@ -235,7 +249,7 @@ export default function HomeScreen() {
         <Pressable
           testID="home-connect-button"
           accessibilityRole="button"
-          accessibilityLabel="Open audio output picker"
+          accessibilityLabel="Open AirPlay picker"
           style={({ pressed }) => [
             styles.connectButton,
             {
@@ -245,17 +259,17 @@ export default function HomeScreen() {
             pressed && styles.connectButtonPressed,
           ]}
           onPress={() => {
-            handleConnectPress();
+            void handleConnectPress();
           }}
         >
           <Ionicons
-            name="phone-portrait-outline"
+            name={Platform.OS === 'ios' ? 'radio-outline' : 'phone-portrait-outline'}
             size={16}
             color={buttonGlyphColor}
             style={styles.connectIcon}
           />
           <View style={styles.connectTextWrap}>
-            <Text style={[styles.connectLabel, { color: buttonGlyphColor }]}>Connect</Text>
+            <Text style={[styles.connectLabel, { color: buttonGlyphColor }]}>AirPlay</Text>
             <Text style={[styles.connectDevice, { color: theme.tabIconDefault }]}>{currentOutput}</Text>
           </View>
         </Pressable>
@@ -276,6 +290,8 @@ const styles = StyleSheet.create({
   },
   topPill: {
     alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     borderColor: '#d1d5db',
     borderWidth: 0.5,
     borderRadius: 999,

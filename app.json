@@ -7,22 +7,12 @@
     "icon": "./assets/images/icon.png",
     "scheme": "kbpslive",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff",
-      "dark": {
-        "image": "./assets/images/icon.png",
-        "backgroundColor": "#000000"
-      }
-    },
     "ios": {
+      "buildNumber": "57",
       "supportsTablet": true,
       "bundleIdentifier": "com.firstdivisioncaptain.KbpsLive",
       "infoPlist": {
         "UIBackgroundModes": [
-          "audio",
           "audio"
         ],
         "ITSAppUsesNonExemptEncryption": false
@@ -30,15 +20,18 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/adaptive-icon-foreground.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.firstdivisioncaptain.KbpsLive",
       "permissions": [
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.WAKE_LOCK"
+      ],
+      "versionCode": 3
     },
     "web": {
       "bundler": "metro",
@@ -51,12 +44,6 @@
       "expo-web-browser",
       "expo-updates",
       [
-        "expo-av",
-        {
-          "microphonePermission": false
-        }
-      ],
-      [
         "expo-build-properties",
         {
           "ios": {
@@ -65,7 +52,21 @@
           }
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "image": "./assets/images/icon.png",
+            "backgroundColor": "#ffffff"
+          }
+        }
+      ],
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true
@@ -75,7 +76,7 @@
       "checkAutomatically": "NEVER",
       "fallbackToCacheTimeout": 0
     },
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": "1.0.0-sdk58",
     "extra": {
       "router": {},
       "eas": {

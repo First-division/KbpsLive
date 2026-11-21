@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Station } from '@/constants/Station';
 
 interface NowPlaying {
@@ -38,62 +38,59 @@ const DEFAULT_NOW_PLAYING: NowPlaying = {
   artwork: Station.defaultArtwork,
 };
 
-// Poll the Amperwave stream metadata for now-playing info
-// The direct stream returns ICY metadata headers; we try a lightweight approach
-// by hitting the stream with a range request to extract metadata.
-// Fallback: just show station name.
-
-export function useNowPlaying(isPlaying: boolean) {
+export function useNowPlaying(isActive: boolean) {
   const [nowPlaying, setNowPlaying] = useState<NowPlaying>(DEFAULT_NOW_PLAYING);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const fetchMetadata = useCallback(async () => {
-    try {
-      const response = await fetch(
-        `https://api-nowplaying.amperwave.net/api/v1/prtplus/nowplaying/1/2011/nowplaying.json`,
-        { headers: { Accept: 'application/json' } }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const track = data?.performances?.[0];
-        if (track?.title || track?.artist) {
-          const artworkCandidate =
-            normalizeArtworkUrl(track.largeimage) ||
-            normalizeArtworkUrl(track.mediumimage) ||
-            normalizeArtworkUrl(track.smallimage);
-
-          setNowPlaying({
-            title: track.title || Station.name,
-            artist: track.artist || '',
-            artwork: artworkCandidate || Station.defaultArtwork,
-          });
-          return;
-        }
-      }
-    } catch {
-      // Endpoint may not exist — that's fine, use defaults
-    }
-
-    // Fallback: keep defaults
-    setNowPlaying(DEFAULT_NOW_PLAYING);
-  }, []);
 
   useEffect(() => {
-    if (isPlaying) {
-      fetchMetadata();
-      intervalRef.current = setInterval(fetchMetadata, 30000); // poll every 30s
-    } else {
-      setNowPlaying(DEFAULT_NOW_PLAYING);
-    }
+    if (!isActive) return;
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let activeRequest: AbortController | undefined;
+
+    const fetchMetadata = async () => {
+      const request = new AbortController();
+      activeRequest = request;
+      const timeout = setTimeout(() => request.abort(), 10000);
+      try {
+        const response = await fetch(
+          'https://api-nowplaying.amperwave.net/api/v1/prtplus/nowplaying/1/2011/nowplaying.json',
+          { headers: { Accept: 'application/json' }, signal: request.signal }
+        );
+        if (!response.ok) throw new Error(`Metadata request failed: ${response.status}`);
+        const data = await response.json();
+        const track = data?.performances?.[0];
+        if (!track?.title && !track?.artist) throw new Error('Metadata response has no track');
+        if (cancelled) return;
+
+        const title = track.title || Station.name;
+        const artist = track.artist || '';
+        const artworkCandidate =
+          normalizeArtworkUrl(track.largeimage) ||
+          normalizeArtworkUrl(track.mediumimage) ||
+          normalizeArtworkUrl(track.smallimage);
+        setNowPlaying((previous) => {
+          const artwork = artworkCandidate ||
+            (previous.title === title && previous.artist === artist ? previous.artwork : Station.defaultArtwork);
+          if (previous.title === title && previous.artist === artist && previous.artwork === artwork) return previous;
+          return { title, artist, artwork };
+        });
+      } catch (error) {
+        if (!cancelled) console.warn('[NowPlaying] Unable to refresh metadata:', error);
+      } finally {
+        clearTimeout(timeout);
+        if (activeRequest === request) activeRequest = undefined;
+        if (!cancelled) timer = setTimeout(fetchMetadata, 30000);
       }
     };
-  }, [isPlaying, fetchMetadata]);
+
+    void fetchMetadata();
+    return () => {
+      cancelled = true;
+      activeRequest?.abort();
+      if (timer) clearTimeout(timer);
+    };
+  }, [isActive]);
 
   return nowPlaying;
 }

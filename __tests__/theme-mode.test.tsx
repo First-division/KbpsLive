@@ -25,8 +25,8 @@ function ThemeProbe() {
 }
 
 describe('Theme mode', () => {
-  it('defaults to dark and updates preference through the provider', () => {
-    const { getByTestId, getByText } = render(
+  it('defaults to dark and updates preference through the provider', async () => {
+    const { getByTestId, getByText } = await render(
       <ThemeModeProvider>
         <ThemeProbe />
       </ThemeModeProvider>
@@ -35,7 +35,7 @@ describe('Theme mode', () => {
     expect(getByTestId('theme-scheme').props.children).toBe('dark');
     expect(getByTestId('theme-preference').props.children).toBe('dark');
 
-    fireEvent.press(getByText('Set Light'));
+    await fireEvent.press(getByText('Set Light'));
 
     expect(getByTestId('theme-scheme').props.children).toBe('light');
     expect(getByTestId('theme-preference').props.children).toBe('light');

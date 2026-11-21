@@ -10,15 +10,14 @@ export type WhatsNewContent = {
 export const WHATS_NEW_CONTENT: WhatsNewContent = {
   "releaseLabel": "1.0.0",
   "title": "KbpsLive 1.0.0",
-  "subtitle": "The first KBPS Live release adds a guided onboarding flow, a proper What's New screen, and OTA-ready update tracking.",
+  "subtitle": "Listen to KBPS Live, explore the schedule, and find help in the app guide.",
   "features": [
-    "Added a first-launch guide that explains how to use Live, Recent, Explore, and Settings.",
-    "Added a What's New screen that appears after app updates and can be reopened from Settings.",
-    "Added OTA update tracking so the app remembers which update the user has already seen."
+    "Listen live and view recently played songs.",
+    "Explore the show schedule, news, interviews, and song requests.",
+    "Open the App Guide and What's New from Settings."
   ],
   "bugFixes": [
-    "Improved startup flow so onboarding only appears once and update notes do not repeat unnecessarily.",
-    "Kept launch-state storage isolated from the theme preference storage."
+    "Improved the App Guide and What's New screens with clear navigation."
   ],
-  "guideTip": "This first release sets up the foundations for KBPS Live's onboarding and release-note experience. New users get a short guide to the app, and returning users can see what changed after an update without hunting through the interface."
+  "guideTip": "Find the App Guide and What's New in Settings whenever you need them."
 };
