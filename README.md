@@ -35,6 +35,10 @@ flowchart TD
 
 The app is built with React Native, Expo, TypeScript, and Expo Router. The player uses Expo Audio, while the now-playing service supplies song information separately from the audio stream. On iOS, the operating system controls how Now Playing appears on the Lock Screen and Dynamic Island.
 
+## Roadmap
+
+- [CMS and admin plan](docs/CMS-PLAN.md): letting station staff edit the schedule, news, interviews, and announcements without an app update.
+
 ## Development
 
 From this directory, install the project's dependencies and start Expo:
