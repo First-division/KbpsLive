@@ -37,7 +37,8 @@ The app is built with React Native, Expo, TypeScript, and Expo Router. The playe
 
 ## Roadmap
 
-- [CMS and admin plan](docs/CMS-PLAN.md): letting station staff edit the schedule, news, interviews, and announcements without an app update.
+- [CMS and admin plan](docs/CMS-PLAN.md): letting station staff edit station content without an app update.
+- [Schedule CMS setup](docs/CMS-SETUP.md): configure the schedule backend and staff admin. Without configuration the app keeps its bundled schedule.
 
 ## Development
 

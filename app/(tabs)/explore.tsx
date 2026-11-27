@@ -6,6 +6,7 @@ import { Text, View } from '@/components/Themed';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { Station } from '@/constants/Station';
+import { useSchedule } from '@/hooks/useSchedule';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   child: 'people',
@@ -17,6 +18,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
+  const { shows, offline } = useSchedule();
   const theme = Colors[colorScheme];
   const bottomPadding = Platform.OS === 'android'
     ? Math.max(insets.bottom + 120, 132)
@@ -41,8 +43,10 @@ export default function ExploreScreen() {
       {/* Schedule Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Show Schedule</Text>
-        {Station.schedule.map((show, i) => (
-          <View key={i} style={styles.showCard}>
+        {offline && <Text style={styles.scheduleStatus}>Showing the last available schedule; updates are temporarily unavailable.</Text>}
+        {shows.length === 0 && <Text style={styles.scheduleStatus}>No shows are currently scheduled.</Text>}
+        {shows.map((show) => (
+          <View key={show.id} style={styles.showCard}>
             <View style={styles.showIconContainer}>
               <Ionicons
                 name={ICON_MAP[show.icon] || 'radio'}
@@ -145,6 +149,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
     backgroundColor: 'transparent',
+  },
+  scheduleStatus: {
+    opacity: 0.7,
+    marginBottom: 8,
   },
   showIconContainer: {
     width: 40,

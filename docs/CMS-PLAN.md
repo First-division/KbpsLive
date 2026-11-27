@@ -12,6 +12,12 @@ A step-by-step plan for letting station staff (teacher, student managers) edit t
 
 Staff log in to a web admin page, edit content, and the app shows it right away.
 
+## Implementation status
+
+The schedule-only foundation is implemented in this repository: a Supabase migration with seeded shows and role-based RLS, an app reader with offline fallback, and a separate staff admin website. See [CMS setup](CMS-SETUP.md) for deployment, security checks, and hand-off. **It is not deployed or connected until a station-owned Supabase project and hosting are configured.** Listeners receive changes on opening the Explore tab and approximately once a minute while it remains focused.
+
+News, interviews, announcements, media uploads, invitation/role management in the admin UI, and draft/publish workflows are not implemented yet. News and interview links remain unchanged. Schedule editors can make shows visible immediately; the draft/publish approval flow below is a later phase.
+
 ## Recommended approach: Supabase (hosted, free tier)
 
 Chosen because it gives a database, login, roles, file storage, and an auto-generated API with no server to maintain. Alternatives: Firebase (similar), Sanity (best ready-made editor UI, no auth to build), Directus (self-hosted).
@@ -50,7 +56,7 @@ Chosen because it gives a database, login, roles, file storage, and an auto-gene
 
 1. Create a project at supabase.com.
 2. Create tables:
-   - `shows`: `id`, `name`, `day`, `start_time`, `end_time`, `icon`, `active`, `sort_order`
+   - `shows`: `id`, `name`, `day`, `time`, `icon`, `active`, `sort_order` (the current schedule has free-form day/time labels, not complete structured start/end times)
    - `news`: `id`, `title`, `body`, `image_url`, `published_at`, `status` (`draft`/`published`)
    - `interviews`: `id`, `title`, `guest`, `summary`, `media_url`, `thumbnail_url`, `published_at`, `status`
    - `announcements`: `id`, `message`, `link_url`, `starts_at`, `ends_at`

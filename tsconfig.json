@@ -18,6 +18,7 @@
     "node_modules",
     "ios",
     "android",
+    "admin",
     "__tests__",
     "jest.setup.ts"
   ]

@@ -67,6 +67,13 @@ jest.mock('@/hooks/useNowPlaying', () => ({
   }),
 }));
 
+jest.mock('@/hooks/useSchedule', () => ({
+  useSchedule: () => ({
+    shows: require('@/lib/schedule').bundledSchedule,
+    offline: false,
+  }),
+}));
+
 jest.mock('@/hooks/useRecentlyPlayed', () => ({
   useRecentlyPlayed: () => ({
     songs: [
