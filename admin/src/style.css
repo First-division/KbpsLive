@@ -15,6 +15,20 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
+body::after {
+  content: "";
+  position: fixed;
+  inset: 4px;
+  z-index: 10;
+  pointer-events: none;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: linear-gradient(120deg, #51aaff, #3de5ba 48%, #b14cff) border-box;
+  -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
 main { max-width: 900px; margin: auto; padding: 24px; }
 header, .actions, .shows li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .header-controls, .theme-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
