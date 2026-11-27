@@ -4,6 +4,7 @@ import { createClient, type Session, type SupabaseClient } from '@supabase/supab
 import './style.css';
 
 type Role = 'admin' | 'editor';
+type Theme = 'light' | 'dark';
 type Icon = 'child' | 'microphone' | 'star' | 'music';
 type Show = {
   id: string;
@@ -18,6 +19,17 @@ type ShowInput = Omit<Show, 'id'>;
 
 const emptyShow: ShowInput = { name: '', day: '', time: '', icon: 'music', active: true, sort_order: 0 };
 const initialLinkType = new URLSearchParams(window.location.hash.slice(1)).get('type');
+const themeStorageKey = 'kbps-admin-theme';
+
+function initialTheme(): Theme {
+  try {
+    const saved = window.localStorage.getItem(themeStorageKey);
+    if (saved === 'light' || saved === 'dark') return saved;
+  } catch (error) {
+    console.warn('Could not read the theme preference:', error);
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
 function makeClient(): { client: SupabaseClient | null; error: string | null } {
   const url = import.meta.env.VITE_SUPABASE_URL;
@@ -51,6 +63,20 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(config.error);
   const [notice, setNotice] = useState<string | null>(null);
+  const [theme, setTheme] = useState<Theme>(initialTheme);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  function chooseTheme(next: Theme) {
+    setTheme(next);
+    try {
+      window.localStorage.setItem(themeStorageKey, next);
+    } catch (storageError) {
+      console.warn('Could not save the theme preference:', storageError);
+    }
+  }
 
   useEffect(() => {
     if (!client) {
@@ -213,7 +239,13 @@ function App() {
     <main>
       <header>
         <div><p className="eyebrow">AM 1450 KBPS</p><h1>Schedule admin</h1></div>
-        {session && <button className="secondary" disabled={busy} onClick={() => void signOut()}>Sign out</button>}
+        <div className="header-controls">
+          <div className="theme-controls" role="group" aria-label="Color theme">
+            <button type="button" aria-pressed={theme === 'light'} onClick={() => chooseTheme('light')}>Light</button>
+            <button type="button" aria-pressed={theme === 'dark'} onClick={() => chooseTheme('dark')}>Dark</button>
+          </div>
+          {session && <button className="secondary" disabled={busy} onClick={() => void signOut()}>Sign out</button>}
+        </div>
       </header>
       {error && <p className="alert" role="alert">{error}</p>}
       {notice && <p className="notice" role="status">{notice}</p>}

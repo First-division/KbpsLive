@@ -6,6 +6,7 @@ This is the first slice of the [CMS plan](CMS-PLAN.md), not a deployed service. 
 
 - `supabase/migrations/20261125000000_schedule.sql` creates `shows` and `profiles`, enables row-level security (RLS), and seeds the existing schedule. The day and time fields are display labels, so the existing ranges and weekdays are preserved. Dates, time-zone calculations, and automatic show switching are not implemented.
 - `admin/` is a separate website for invited staff. Editors and admins can add/edit shows, change display order, and show/hide them; only admins can delete. Hiding every show intentionally produces an empty schedule.
+- The admin's Light and Dark buttons are available before and after sign-in. The choice is saved in that browser; initially it follows the device's color preference.
 - The app fetches only visible shows when Explore gains focus and every 60 seconds while it is focused. It stores the last valid response on the device and falls back to the bundled schedule if no cache exists. An empty response is a valid schedule. A configured app displays a notice when a refresh fails.
 
 The schedule is public information. Avoid personal or sensitive information in show labels. Student names, photos, and recordings require the school's privacy rules and approval before any future content features are enabled.
