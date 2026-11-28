@@ -19,6 +19,7 @@
     "ios",
     "android",
     "admin",
+    "supabase/functions",
     "__tests__",
     "jest.setup.ts"
   ]

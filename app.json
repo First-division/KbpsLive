@@ -8,7 +8,7 @@
     "scheme": "kbpslive",
     "userInterfaceStyle": "dark",
     "ios": {
-      "buildNumber": "57",
+      "buildNumber": "58",
       "supportsTablet": true,
       "bundleIdentifier": "com.firstdivisioncaptain.KbpsLive",
       "infoPlist": {

@@ -34,6 +34,8 @@ The schedule is public information. Avoid personal or sensitive information in s
 3. Set the deployed URL in the Supabase Auth URL/redirect settings. Have an invited staff member follow the invitation link to the admin site, set a password, and sign in. The website has a password form for invite/recovery links; recovery emails are currently initiated from Supabase, not from the website.
 4. Test add, edit, hide, order, and (as admin) delete with disposable shows. Lower order numbers appear first; ties are ordered by ID. Editors can make schedule changes visible immediately; there is no approval queue.
 
+The website's System theme follows the device's light or dark appearance, including changes while the page is open. Light and Dark override the device setting; the selected preference is saved in the browser. Existing saved Light or Dark choices remain in effect until changed.
+
 ## 3. Connect the mobile app
 
 1. Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` to the same project URL and public key; `.env.example` lists the names. Expo embeds these values at build/update time. A local `.env.local` is ignored by git.

@@ -5,7 +5,7 @@ import { StaffManagement } from './StaffManagement';
 import './style.css';
 
 type Role = 'admin' | 'editor';
-type Theme = 'light' | 'dark';
+type Theme = 'system' | 'light' | 'dark';
 type Icon = 'child' | 'microphone' | 'star' | 'music';
 type Show = {
   id: string;
@@ -32,11 +32,11 @@ const oauthError = googleSignInEnabled
 function initialTheme(): Theme {
   try {
     const saved = window.localStorage.getItem(themeStorageKey);
-    if (saved === 'light' || saved === 'dark') return saved;
+    if (saved === 'system' || saved === 'light' || saved === 'dark') return saved;
   } catch (error) {
     console.warn('Could not read the theme preference:', error);
   }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return 'system';
 }
 
 function makeClient(): { client: SupabaseClient | null; error: string | null } {
@@ -74,7 +74,15 @@ function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    const preference = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = () => {
+      document.documentElement.dataset.theme = theme === 'system'
+        ? (preference.matches ? 'dark' : 'light')
+        : theme;
+    };
+    applyTheme();
+    if (theme === 'system') preference.addEventListener('change', applyTheme);
+    return () => preference.removeEventListener('change', applyTheme);
   }, [theme]);
 
   function chooseTheme(next: Theme) {
@@ -273,6 +281,7 @@ function App() {
         <div><p className="eyebrow">AM 1450 KBPS</p><h1>Schedule admin</h1></div>
         <div className="header-controls">
           <div className="theme-controls" role="group" aria-label="Color theme">
+            <button type="button" aria-pressed={theme === 'system'} onClick={() => chooseTheme('system')}>System</button>
             <button type="button" aria-pressed={theme === 'light'} onClick={() => chooseTheme('light')}>Light</button>
             <button type="button" aria-pressed={theme === 'dark'} onClick={() => chooseTheme('dark')}>Dark</button>
           </div>
