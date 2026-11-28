@@ -16,7 +16,7 @@ Staff log in to a web admin page, edit content, and the app shows it right away.
 
 The schedule-only foundation is implemented in this repository: a Supabase migration with seeded shows and role-based RLS, an app reader with offline fallback, and a separate staff admin website. See [CMS setup](CMS-SETUP.md) for deployment, security checks, and hand-off. **It is not deployed or connected until a station-owned Supabase project and hosting are configured.** Listeners receive changes on opening the Explore tab and approximately once a minute while it remains focused.
 
-News, interviews, announcements, media uploads, invitation/role management in the admin UI, and draft/publish workflows are not implemented yet. News and interview links remain unchanged. Schedule editors can make shows visible immediately; the draft/publish approval flow below is a later phase.
+Google sign-in and administrator-approved staff access are controlled by disabled-by-default feature flags. The KbpsLive backend migration, Google provider and signup hook were configured, with real-account tests and remaining limitations documented in [CMS setup](CMS-SETUP.md). Verify the live feature flags and signup settings before onboarding staff. No invitation emails or paid domain are required for this approach. News, interviews, announcements, media uploads, and draft/publish workflows are not implemented yet. News and interview links remain unchanged. Schedule editors can make shows visible immediately; the draft/publish approval flow below is a later phase.
 
 ## Recommended approach: Supabase (hosted, free tier)
 

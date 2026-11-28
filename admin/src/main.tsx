@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
+import { StaffManagement } from './StaffManagement';
 import './style.css';
 
 type Role = 'admin' | 'editor';
@@ -20,6 +21,13 @@ type ShowInput = Omit<Show, 'id'>;
 const emptyShow: ShowInput = { name: '', day: '', time: '', icon: 'music', active: true, sort_order: 0 };
 const initialLinkType = new URLSearchParams(window.location.hash.slice(1)).get('type');
 const themeStorageKey = 'kbps-admin-theme';
+const staffManagementEnabled = import.meta.env.VITE_ENABLE_STAFF_MANAGEMENT === 'true';
+const googleSignInEnabled = import.meta.env.VITE_ENABLE_GOOGLE_SIGN_IN === 'true';
+const oauthQuery = new URLSearchParams(window.location.search);
+const oauthHash = new URLSearchParams(window.location.hash.slice(1));
+const oauthError = googleSignInEnabled
+  ? oauthQuery.get('error_description') || oauthHash.get('error_description')
+  : null;
 
 function initialTheme(): Theme {
   try {
@@ -61,7 +69,7 @@ function App() {
   const [form, setForm] = useState<ShowInput>(emptyShow);
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(config.error);
+  const [error, setError] = useState<string | null>(config.error || (oauthError ? `Sign in failed: ${oauthError}` : null));
   const [notice, setNotice] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(initialTheme);
 
@@ -120,14 +128,24 @@ function App() {
     setRole(null);
     setShows([]);
     void (async () => {
-      const { data, error: profileError } = await client.from('profiles')
-        .select('role').eq('id', session.user.id).maybeSingle();
+      if (googleSignInEnabled) {
+        const { error: claimError } = await client.rpc('claim_google_staff');
+        if (!active) return;
+        if (claimError) {
+          setError(`Could not check Google staff access: ${claimError.message}`);
+          return;
+        }
+      }
+      const { data, error: profileError } = staffManagementEnabled
+        ? await client.from('profiles').select('role,active').eq('id', session.user.id).maybeSingle()
+        : await client.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
       if (!active) return;
       if (profileError) {
         setError(profileError.message);
         return;
       }
-      if (data?.role !== 'admin' && data?.role !== 'editor') {
+      if ((data?.role !== 'admin' && data?.role !== 'editor') ||
+          (staffManagementEnabled && (!('active' in data) || data.active !== true))) {
         setError('This account has no staff role. Ask a station admin to grant access.');
         return;
       }
@@ -154,6 +172,20 @@ function App() {
     if (authError) setError(authError.message);
     else setPasswordValue('');
     setBusy(false);
+  }
+
+  async function signInWithGoogle() {
+    if (!client) return;
+    setBusy(true);
+    setError(null);
+    const { error: authError } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/` },
+    });
+    if (authError) {
+      setError(authError.message);
+      setBusy(false);
+    }
   }
 
   async function savePassword(event: React.FormEvent) {
@@ -252,12 +284,16 @@ function App() {
       {initializing ? <p>Loading…</p> : !client ? null : !session ? (
         <section>
           <h2>Staff sign in</h2>
-          <p>Only invited station staff can edit the schedule.</p>
+          <p>Only approved station staff can edit the schedule.</p>
           <form onSubmit={signIn}>
             <label>Email<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
             <label>Password<input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPasswordValue(e.target.value)} /></label>
             <button disabled={busy}>Sign in</button>
           </form>
+          {googleSignInEnabled && <div className="google-sign-in">
+            <p>Already approved for staff access?</p>
+            <button type="button" className="secondary" disabled={busy} onClick={() => void signInWithGoogle()}>Sign in with Google</button>
+          </div>}
         </section>
       ) : setPassword ? (
         <section>
@@ -298,6 +334,7 @@ function App() {
               </li>
             ))}</ul>
           </section>
+          {staffManagementEnabled && role === 'admin' && <StaffManagement client={client} userId={session.user.id} />}
         </>
       ) : <p>{error ? 'Staff access could not be loaded.' : 'Checking staff access…'}</p>}
     </main>
